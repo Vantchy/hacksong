@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>宠物伙伴</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部信息栏 -->
+        <header>
+            <h1 id="pet-name">🐾 小宠物</h1>
+            <div class="meta-info">
+                <span>等级 <strong id="level">1</strong></span>
+                <span>经验 <strong id="xp">0</strong>/<strong id="xp-next">100</strong></span>
+                <span>年龄 <strong id="age">0</strong> 天</span>
+            </div>
+            <!-- 经验条 -->
+            <div class="progress-bar" id="xp-bar">
+                <div class="progress-fill" id="xp-fill" style="width: 0%"></div>
+            </div>
+        </header>
+
+        <!-- 宠物展示区 -->
+        <section id="pet-area">
+            <div id="pet-sprite" class="pet-normal">😊</div>
+            <div id="pet-message" class="message-bubble">你好！我是你的小宠物～</div>
+        </section>
+
+        <!-- 属性面板 -->
+        <section id="stats-panel">
+            <div class="stat">
+                <span class="stat-label">🍔 饱食度</span>
+                <div class="progress-bar"><div class="progress-fill" id="hunger-fill" style="width: 80%"></div></div>
+                <span class="stat-value" id="hunger-value">80</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">😄 快乐度</span>
+                <div class="progress-bar"><div class="progress-fill" id="happiness-fill" style="width: 70%"></div></div>
+                <span class="stat-value" id="happiness-value">70</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">⚡ 精力</span>
+                <div class="progress-bar"><div class="progress-fill" id="energy-fill" style="width: 90%"></div></div>
+                <span class="stat-value" id="energy-value">90</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">🧹 清洁度</span>
+                <div class="progress-bar"><div class="progress-fill" id="hygiene-fill" style="width: 60%"></div></div>
+                <span class="stat-value" id="hygiene-value">60</span>
+            </div>
+        </section>
+
+        <!-- 操作按钮 -->
+        <section id="actions">
+            <button class="action-btn" data-action="feed">🍔 喂食</button>
+            <button class="action-btn" data-action="play">🎮 玩耍</button>
+            <button class="action-btn" data-action="sleep">😴 睡觉</button>
+            <button class="action-btn" data-action="clean">🛁 洗澡</button>
+            <button class="action-btn" data-action="heal">💊 治疗</button>
+        </section>
+
+        <!-- 存档管理 -->
+        <section id="save-management">
+            <button class="secondary-btn" id="save-btn">💾 保存</button>
+            <button class="secondary-btn" id="load-btn">📂 读档</button>
+            <button class="secondary-btn danger" id="reset-btn">🗑️ 重置</button>
+        </section>
+    </div>
+
+    <script src="js/gameLogic.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
