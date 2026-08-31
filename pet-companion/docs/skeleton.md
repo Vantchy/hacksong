@@ -227,7 +227,6 @@ const GameLogic = {    // [C] 全局对象名，属 [B+C] 接口区，B 和 C �
         happiness: 70,      // [A+B+C] → 对应 HTML id="happiness-fill/value"
         energy: 90,         // [A+B+C] → 对应 HTML id="energy-fill/value"
         hygiene: 60,        // [A+B+C] → 对应 HTML id="hygiene-fill/value"
-        health: 100,        // [A+B+C] → 暂未绑定 UI
         isSleeping: false,  // [A+B+C] → 影响宠物表情
         createdAt: Date.now()  // [C] 仅内部使用
     },
@@ -239,17 +238,26 @@ const GameLogic = {    // [C] 全局对象名，属 [B+C] 接口区，B 和 C �
     addXp: function (state, amount) { ... },  // [B+C] 方法签名不可改
 
     // ===== [C] 各操作的效果（B 通过 performAction 间接使用） =====
-    // [B+C] data-action 值（feed/play/sleep/clean/heal）必须与 HTML 一致
+    // [B+C] data-action 值（见下方列表）必须与 HTML 一致
+    // 每项含 cost（专注星消耗），cost=0 为免费互动
     actions: {
-        feed: { effects: { hunger: 20, happiness: 5, energy: 5 }, xpReward: 15, ... },
-        play: { effects: { happiness: 25, energy: -15, hunger: -5 }, xpReward: 20, ... },
-        sleep: { effects: { energy: 30, happiness: 5, hunger: -3 }, xpReward: 10, ... },
-        clean: { effects: { hygiene: 30, happiness: 5, energy: -5 }, xpReward: 12, ... },
-        heal: { effects: { health: 30, happiness: -5, energy: -10 }, xpReward: 18, ... }
+        // 免费：pet_free, greet
+        // 点数：feed, clean, highfive, cheer, pet_extra, sleep
+        pet_free: { effects: { affection: 1, happiness: 2 }, cost: 0, xpReward: 3, ... },
+        greet:    { effects: { happiness: 1 },               cost: 0, xpReward: 2, ... },
+        feed:     { effects: { hunger: 15 },                 cost: 3, xpReward: 15, ... },
+        clean:    { effects: { hygiene: 20 },                cost: 3, xpReward: 12, ... },
+        highfive: { effects: { energy: 5, happiness: 3 },    cost: 2, xpReward: 10, ... },
+        cheer:    { effects: { happiness: 5 },                cost: 1, xpReward: 5, ... },
+        pet_extra:{ effects: { affection: 2, happiness: 3 }, cost: 1, xpReward: 8, ... },
+        sleep:    { effects: { energy: 20 },                  cost: 2, xpReward: 10, ... }
     },
 
     // ===== [C] 执行操作（B 唯一调用的入口） =====
     // [B+C] 返回值格式 { state, message } 不可改
+    // 内部逻辑：检查 cost → 扣除 stars → 应用 effects → 加经验
+    // 亲密度 (affection) 不做 0-100 上限，其余属性 0-100 截断
+    // 若 stars 不足，返回 { state, message: '需要 X 专注星' }（不修改 state）
     performAction: function (state, actionKey) { ... },
 
     // ===== [C] 倒计时衰减（B 唯一调用的入口） =====
@@ -258,7 +266,35 @@ const GameLogic = {    // [C] 全局对象名，属 [B+C] 接口区，B 和 C �
 
     // ===== [C] 检查警告（B 调用渲染） =====
     // [B+C] 返回值 string|null 不可改
-    getWarning: function (state) { ... }
+    getWarning: function (state) { ... },
+
+    // =================================================================
+    //  专注星系统（[C] 新增，[B+C] 接口区）
+    //  规则文档：docs/animallogicC.md
+    // =================================================================
+
+    // ===== [C] 内部：每日数据重置 =====
+    _checkDailyReset: function (state) { ... },  // [C] 内部方法，B 不直接调用
+
+    // ===== [C] 每日首次登录奖励（B 在 init 中调用） =====
+    // [B+C] 返回值 { state, message, claimed } 不可改
+    claimDailyLogin: function (state) { ... },
+
+    // ===== [C] 进入专注状态（B 在活动检测中调用） =====
+    // [B+C] 返回值 state 不可改
+    enterFocus: function (state) { ... },
+
+    // ===== [C] 离开专注状态，结算专注星（B 在超时检测中调用） =====
+    // [B+C] 返回值 { state, message, starsEarned } 不可改
+    leaveFocus: function (state) { ... },
+
+    // ===== [C] 专注区块计时（B 在 doTick 中同步调用） =====
+    // [B+C] 返回值 { state, message } 不可改
+    tickFocus: function (state) { ... },
+
+    // ===== [C] 获取专注星信息（B 可选用于 UI 展示） =====
+    // [B+C] 返回值 { stars, dailyStars, dailyRemaining, sessionBlocks } 不可改
+    getStarsInfo: function (state) { ... }
 };
 ```
 
@@ -411,26 +447,31 @@ const Storage = {    // [C] 全局对象名，属 [B+C] 接口区
 | **HTML id** | `pet-name`, `level`, `xp`, `xp-next`, `age`, `xp-fill`, `pet-sprite`, `pet-message`, `hunger-fill`, `hunger-value`, `happiness-fill`, `happiness-value`, `energy-fill`, `energy-value`, `hygiene-fill`, `hygiene-value`, `save-btn`, `load-btn`, `reset-btn` | A 改 id → B 的 JS 失效 |
 | **CSS class** | `.action-btn`（B 用 `querySelectorAll` 绑定事件） | A 删 class → B 按钮失效 |
 | **CSS 动画 class** | `.pet-normal`, `.pet-happy`, `.pet-sleeping`, `.pet-sick`（B 用 `classList.add/remove` 切换） | A 改名 → B 动画失效 |
-| **data-action** | `feed`, `play`, `sleep`, `clean`, `heal`（A 定义值，B 读取后传给 C） | 任意一方改了值 → 操作失效 |
+| **data-action** | `pet_free`, `greet`, `feed`, `clean`, `highfive`, `cheer`, `pet_extra`, `sleep`（A 定义值，B 读取后传给 C。`play`、`heal` 已移除） | 任意一方改了值 → 操作失效 |
 
 ### 7.2 [B+C] 接口区（B 和 C 必须协商）
 
 | 接口类型 | 具体内容 | 风险 |
 |----------|----------|------|
 | **全局对象名** | `GameLogic`, `Storage` | 改名 → B 的调用全断 |
-| **方法签名** | `performAction(state, actionKey)` → `{ state, message }` | 改返回值格式 → B 渲染出错 |
+| **方法签名（原有）** | `performAction(state, actionKey)` → `{ state, message }` | 改返回值格式 → B 渲染出错 |
 | | `tick(state, minutes)` → `Object` | 改参数含义 → B 调用出错 |
 | | `getWarning(state)` → `string \| null` | 改返回值类型 → B 逻辑出错 |
 | | `save(state)` → `boolean` | 改参数 → B 调用出错 |
 | | `load()` → `Object \| null` | 改返回值 → B 逻辑出错 |
 | | `clear()` → `boolean` | — |
-| **data-action 枚举** | `feed`, `play`, `sleep`, `clean`, `heal` | C 删了某个 key → B 操作无反应 |
+| **方法签名（专注星系统新增）** | `claimDailyLogin(state)` → `{ state, message, claimed }` | B 依赖 claimed 字段判断是否到账 |
+| | `enterFocus(state)` → `Object` | 改返回值 → B 专注跟踪失效 |
+| | `leaveFocus(state)` → `{ state, message, starsEarned }` | B 依赖 starsEarned 展示奖励 |
+| | `tickFocus(state)` → `{ state, message }` | B 在 doTick 中同步调用 |
+| | `getStarsInfo(state)` → `{ stars, dailyStars, dailyRemaining, sessionBlocks }` | B 可选用于 UI 渲染 |
+| **data-action 枚举** | `pet_free`, `greet`, `feed`, `clean`, `highfive`, `cheer`, `pet_extra`, `sleep`（`play`、`heal` 已移除） | C 删了某个 key → B 操作无反应 |
 
 ### 7.3 [A+B+C] 契约区（三方必须一致）
 
 | 契约内容 | 文件 | 说明 |
 |----------|------|------|
-| **状态对象字段名** | `samename.md` 第十节 | 12 个字段名，A 用 id 展示、B 用 JS 渲染、C 用算法维护 |
+| **状态对象字段名** | `samename.md` 第十节 | 19 个字段名，A 用 id 展示、B 用 JS 渲染、C 用算法维护 |
 | **命名规范文档** | `samename.md` 全文 | 所有命名以该文件为准 |
 
 ---
