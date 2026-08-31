@@ -1,248 +1,284 @@
-好的，我来给你一份完整的统一接口文档。这份文档会放在 `docs/prompt.md` 中，你和 A、B 都按这个来。
+# 统一命名规范（Samename）
+
+> 本文件列出了 A、B、C 三人需要共同遵守的所有命名约定。**修改任何名称前，必须同步更新此文件并通知其他成员。**
 
 ---
 
-## 📄 docs/prompt.md
+## 一、文件路径（由 A 在 index.html 中引用）
 
-```markdown
-# 宠物伙伴 - 统一接口文档
+三人必须确保以下文件路径完全一致：
 
-> 三人必须严格遵循以下命名规范，确保代码互通。
+| 文件 | 相对路径 | 谁负责 | 谁引用 |
+|------|----------|--------|--------|
+| 样式表 | `css/style.css` | A | index.html `<link>` |
+| 算法规则 | `js/gameLogic.js` | C | index.html `<script>`（加载顺序第1） |
+| 数据持久化 | `js/storage.js` | C | index.html `<script>`（加载顺序第2） |
+| 核心交互 | `js/app.js` | B | index.html `<script>`（加载顺序第3） |
 
----
-
-## 一、数据字段（状态对象）
-
-所有游戏状态存储为一个对象，字段如下：
-
-| 字段 | 类型 | 含义 | 取值范围 |
-|------|------|------|----------|
-| `hunger` | number | 饱食度 | 0-100 |
-| `happiness` | number | 快乐度 | 0-100 |
-| `energy` | number | 精力 | 0-100 |
-| `hygiene` | number | 清洁度 | 0-100 |
-| `health` | number | 健康值 | 0-100 |
-| `level` | number | 等级 | 1+ |
-| `xp` | number | 当前经验值 | 0+ |
-| `isSleeping` | boolean | 是否在睡觉 | true/false |
-| `lastSaved` | string | 上次保存时间（ISO 字符串） | 如 "2026-08-30T10:30:00.000Z" |
-
-### 状态对象示例
-```javascript
-const gameState = {
-  hunger: 80,
-  happiness: 70,
-  energy: 60,
-  hygiene: 90,
-  health: 85,
-  level: 3,
-  xp: 45,
-  isSleeping: false,
-  lastSaved: new Date().toISOString()
-}
-```
+> **加载顺序固定**：gameLogic.js → storage.js → app.js（因为 app.js 依赖前两个全局对象）
 
 ---
 
-## 二、storage.js 接口（C 提供）
+## 二、HTML `id` 属性（A 定义，B 通过 `document.getElementById()` 引用）
 
-| 函数名 | 参数 | 返回值 | 说明 |
-|--------|------|--------|------|
-| `saveGame(data)` | `data`: 状态对象 | `void` | 保存游戏状态到 localStorage |
-| `loadGame()` | 无 | `状态对象 \| null` | 加载存档，无存档返回 null |
-| `resetGame()` | 无 | `void` | 清除所有存档数据 |
-| `hasSave()` | 无 | `boolean` | 检查是否存在存档 |
-
-### 调用示例
-```javascript
-// 保存
-saveGame(gameState);
-
-// 读取
-const data = loadGame();
-if (data) {
-  // 恢复状态
-}
-
-// 重置
-resetGame();
-
-// 检查存档
-if (hasSave()) {
-  // 显示"继续游戏"按钮
-}
-```
-
----
-
-## 三、gameLogic.js 接口（C 提供）
-
-| 函数名 | 参数 | 返回值 | 说明 |
-|--------|------|--------|------|
-| `calculateXP(action)` | `action`: 字符串（见下表） | `number` | 计算某动作获得的经验值 |
-| `checkLevelUp(xp)` | `xp`: 当前经验值 | `{ levelUp, newLevel, remainingXP }` | 检查是否升级 |
-| `getDecayRate(stat)` | `stat`: 字符串（属性名） | `number` | 获取该属性的衰减速率（每小时） |
-| `applyDecay(state)` | `state`: 状态对象 | `新状态对象` | 根据时间差计算衰减，返回新状态 |
-| `getMaxStat()` | 无 | `number` | 返回属性最大值（固定 100） |
-| `isStatValid(value)` | `value`: number | `boolean` | 检查属性值是否在 0-100 范围内 |
-| `getLevelUpXP(level)` | `level`: 当前等级 | `number` | 计算升到下一级所需总经验 |
-
-### action 类型说明（用于 calculateXP）
-
-| action | 说明 | 基础经验值 |
-|--------|------|-----------|
-| `'feed'` | 喂食 | 10 |
-| `'play'` | 玩耍 | 15 |
-| `'sleep'` | 睡觉 | 5 |
-| `'bathe'` | 洗澡 | 8 |
-| `'heal'` | 治疗 | 12 |
-
-### 调用示例
-```javascript
-// 计算喂食所得经验
-const xpGain = calculateXP('feed');  // 返回 10
-
-// 检查是否升级
-const result = checkLevelUp(150);
-// 返回 { levelUp: true, newLevel: 2, remainingXP: 50 }
-
-// 应用衰减（传入当前状态，返回新状态）
-const newState = applyDecay(gameState);
-
-// 获取某一属性的衰减速率
-const decay = getDecayRate('hunger');  // 返回 2（每小时掉2点）
-```
+| id | 用途 | 所属区域 |
+|----|------|----------|
+| `app` | 应用根容器 | 全局 |
+| `pet-name` | 宠物名称显示 | 顶部信息栏 |
+| `level` | 等级数字 | 顶部信息栏 |
+| `xp` | 当前经验值 | 顶部信息栏 |
+| `xp-next` | 升级所需经验 | 顶部信息栏 |
+| `age` | 年龄天数 | 顶部信息栏 |
+| `xp-bar` | 经验条容器 | 顶部信息栏 |
+| `xp-fill` | 经验条填充 | 顶部信息栏 |
+| `pet-area` | 宠物展示区容器 | 宠物区 |
+| `pet-sprite` | 宠物表情/动画元素 | 宠物区 |
+| `pet-message` | 对话气泡 | 宠物区 |
+| `stats-panel` | 属性面板容器 | 属性面板 |
+| `hunger-fill` | 饱食度填充条 | 属性面板 |
+| `hunger-value` | 饱食度数字 | 属性面板 |
+| `happiness-fill` | 快乐度填充条 | 属性面板 |
+| `happiness-value` | 快乐度数字 | 属性面板 |
+| `energy-fill` | 精力填充条 | 属性面板 |
+| `energy-value` | 精力数字 | 属性面板 |
+| `hygiene-fill` | 清洁度填充条 | 属性面板 |
+| `hygiene-value` | 清洁度数字 | 属性面板 |
+| `actions` | 操作按钮容器 | 操作区 |
+| `save-management` | 存档管理容器 | 存档区 |
+| `save-btn` | 保存按钮 | 存档区 |
+| `load-btn` | 读档按钮 | 存档区 |
+| `reset-btn` | 重置按钮 | 存档区 |
 
 ---
 
-## 四、app.js 要监听的 DOM 元素（A 负责提供）
+## 三、CSS 类名（A 定义，B 在 JS 中可增删）
 
-B 的交互代码需要操作以下元素：
-
-| 用途 | 推荐 ID | 说明 |
-|------|---------|------|
-| 喂食按钮 | `#btn-feed` | 点击触发喂食 |
-| 玩耍按钮 | `#btn-play` | 点击触发玩耍 |
-| 睡觉按钮 | `#btn-sleep` | 点击切换睡眠状态 |
-| 洗澡按钮 | `#btn-bathe` | 点击触发洗澡 |
-| 治疗按钮 | `#btn-heal` | 点击触发治疗 |
-| 保存按钮 | `#btn-save` | 点击手动保存 |
-| 重置按钮 | `#btn-reset` | 点击重置游戏 |
-| 状态显示区域 | `#status-display` | 展示所有属性数值 |
-| 宠物表情/图片 | `#pet-image` | 显示宠物当前表情 |
-| 等级显示 | `#level-display` | 显示当前等级 |
-| 经验条 | `#xp-bar` | 显示经验进度 |
-| 经验值显示 | `#xp-display` | 显示具体经验数值 |
-
-### 可选动画类名（用于 CSS 动画）
-
-| 动作 | 建议添加的类名 | 说明 |
-|------|---------------|------|
-| 喂食 | `animate-feed` | 宠物进食动画 |
-| 玩耍 | `animate-play` | 宠物跳跃动画 |
-| 睡觉 | `animate-sleep` | 睡觉 Zzz 动画 |
-| 洗澡 | `animate-bathe` | 水花动画 |
-| 升级 | `animate-levelup` | 升级闪光动画 |
+| 类名 | 用途 | 备注 |
+|------|------|------|
+| `.meta-info` | 顶部信息栏元数据行 | |
+| `.progress-bar` | 进度条容器 | 公用 |
+| `.progress-fill` | 进度条填充 | 公用 |
+| `.stat` | 属性行容器 | |
+| `.stat-label` | 属性标签文字 | |
+| `.stat-value` | 属性数值文字 | |
+| `.action-btn` | 操作按钮 | B 通过 `querySelectorAll('.action-btn')` 批量绑定 |
+| `.secondary-btn` | 存档按钮 | |
+| `.danger` | 危险操作按钮修饰 | 加在 `.secondary-btn` 上 |
+| `.message-bubble` | 对话气泡 | |
+| `.pet-normal` | 宠物正常状态动画 | B 在 JS 中通过 `classList.add/remove` 切换 |
+| `.pet-happy` | 宠物快乐动画 | 同上 |
+| `.pet-sleeping` | 宠物睡眠动画 | 同上 |
+| `.pet-sick` | 宠物生病动画 | 同上 |
 
 ---
 
-## 五、文件引用关系
+## 四、CSS 关键帧动画名（A 定义，B 不需直接引用）
 
-```
-index.html
-  ├── css/style.css         （A 提供）
-  ├── js/storage.js         （C 提供）
-  ├── js/gameLogic.js       （C 提供）
-  └── js/app.js             （B 提供）
-```
-
-在 `index.html` 中按以下顺序引入：
-
-```html
-<script src="js/storage.js"></script>
-<script src="js/gameLogic.js"></script>
-<script src="js/app.js"></script>
-```
-
-**注意**：`app.js` 依赖 `storage.js` 和 `gameLogic.js`，所以后两者必须先加载。
+| 动画名 | 触发时机 | 对应类名 |
+|--------|----------|----------|
+| `idleBounce` | 正常待机 | `.pet-normal` |
+| `happyJump` | 操作后快乐 | `.pet-happy` |
+| `sleepFloat` | 睡眠中 | `.pet-sleeping` |
+| `sickShake` | 生病状态 | `.pet-sick` |
 
 ---
 
-## 六、数据流转示意
+## 五、`data-action` 属性值（A 在 HTML 中定义，B 通过 `dataset.action` 读取传给 C）
 
-```
-用户操作（点击按钮）
-       ↓
-    app.js（B 负责）
-       ↓
-    ├── 调用 gameLogic.calculateXP()     → 获得经验值
-    ├── 调用 gameLogic.checkLevelUp()    → 检查是否升级
-    ├── 调用 gameLogic.applyDecay()      → 计算衰减
-    ├── 更新 UI 显示
-    └── 调用 storage.saveGame()          → 保存存档
-```
+| 值 | 对应操作 | data-action 枚举 |
+|----|----------|------------------|
+| `feed` | 喂食 | `'feed'` |
+| `play` | 玩耍 | `'play'` |
+| `sleep` | 睡觉 | `'sleep'` |
+| `clean` | 洗澡 | `'clean'` |
+| `heal` | 治疗 | `'heal'` |
 
----
-
-## 七、错误处理规范
-
-- `storage.js` 中的读写操作必须用 `try-catch` 包裹
-- 加载存档失败时返回 `null`，由 `app.js` 处理默认值
-- `gameLogic.js` 中的纯函数不应抛出异常，应返回合理的默认值
+> B 读取：`this.dataset.action` → 传给 `GameLogic.performAction(state, actionKey)`  
+> C 在 `GameLogic.actions` 中必须定义完全相同的 5 个 key
 
 ---
 
-## 八、版本记录
+## 六、JS 全局对象名（C 定义，B 直接调用）
 
-| 日期 | 版本 | 修改内容 | 修改人 |
-|------|------|----------|--------|
-| 2026-08-30 | v1.0 | 初始版本，定义所有接口 | C |
+| 全局对象 | 定义文件 | 用途 |
+|----------|----------|------|
+| `GameLogic` | `js/gameLogic.js` | 提供所有算法和规则方法 |
+| `Storage` | `js/storage.js` | 提供所有存档读写方法 |
 
-```
-
----
-
-## 📋 你需要做的事情
-
-1. **把这整份内容复制到** `docs/prompt.md` 文件中
-2. **提交到你的 feature/storage 分支**：
-
-```bash
-git add docs/prompt.md
-git commit -m "docs: 添加统一接口文档"
-git push origin feature/storage
-```
-
-3. **把这份文档发给 A 和 B**，告诉他们：
-   - 按文档中的 ID 命名来写 HTML（A）
-   - 按文档中的接口名来调用（B）
-   - 文档位置在 `docs/prompt.md`
+> **规则**：两个对象名必须全局唯一，B 和 C 不得修改对方定义的对象名。
 
 ---
 
-## 🔗 接口调用关系图
+## 七、`GameLogic` 属性和方法签名（C 定义，B 调用）
 
+### 7.1 属性
+
+| 路径 | 类型 | 说明 |
+|------|------|------|
+| `GameLogic.defaultState` | Object | 宠物初始状态默认值 |
+| `GameLogic.actions` | Object | 5 种操作的配置集合 |
+
+### 7.2 方法签名
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `GameLogic.xpForLevel(level)` | `level: number` | `number` | 根据等级计算所需经验值 |
+| `GameLogic.addXp(state, amount)` | `state: Object, amount: number` | `number` | 增加经验，返回新等级 |
+| `GameLogic.performAction(state, actionKey)` | `state: Object, actionKey: string` | `{ state: Object, message: string }` | 执行操作，返回新状态和消息 |
+| `GameLogic.tick(state, minutes)` | `state: Object, minutes: number` | `Object` | 属性衰减计算，返回新状态。**注意：健康值归零时返回 `defaultState`（全新状态）** |
+| `GameLogic.getWarning(state)` | `state: Object` | `string \| null` | 检查低属性警告，返回消息或 null |
+
+### 7.3 `GameLogic.actions` 子结构（C 定义，B 通过 `performAction` 间接使用）
+
+每个 action 的结构如下（以 `feed` 为例）：
+
+```js
+GameLogic.actions = {
+    feed: {
+        label: '喂食',              // 操作名称（展示用）
+        effects: {                   // 属性增减量（+ 增加 / - 减少）
+            hunger: 20,              // 饱食度变化
+            happiness: 5,            // 快乐度变化
+            energy: 5                // 精力变化
+        },
+        xpReward: 15,                // 操作获得的经验值
+        message: '🍔 好吃～谢谢你！'  // 操作后显示的消息
+    },
+    play: {
+        label: '玩耍',
+        effects: { happiness: 25, energy: -15, hunger: -5 },
+        xpReward: 20,
+        message: '🎉 好开心呀！'
+    },
+    sleep: {
+        label: '睡觉',
+        effects: { energy: 30, happiness: 5, hunger: -3 },
+        xpReward: 10,
+        message: '😴 晚安～'
+    },
+    clean: {
+        label: '洗澡',
+        effects: { hygiene: 30, happiness: 5, energy: -5 },
+        xpReward: 12,
+        message: '🧼 好干净！'
+    },
+    heal: {
+        label: '治疗',
+        effects: { health: 30, happiness: -5, energy: -10 },
+        xpReward: 18,
+        message: '💊 感觉好多了！'
+    }
+};
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        index.html                          │
-│  (A 提供：按钮 ID、状态显示区域、宠物图片)                   │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                          app.js                            │
-│  (B 负责：绑定按钮、调用接口、更新 UI)                      │
-└─────────────────────────────────────────────────────────────┘
-                    ↓                      ↓
-┌─────────────────────────┐  ┌─────────────────────────────┐
-│      storage.js         │  │       gameLogic.js          │
-│  (C 提供：存档读写)      │  │  (C 提供：算法计算)         │
-│                         │  │                             │
-│  • saveGame()           │  │  • calculateXP()            │
-│  • loadGame()           │  │  • checkLevelUp()           │
-│  • resetGame()          │  │  • applyDecay()             │
-│  • hasSave()            │  │  • getDecayRate()           │
-└─────────────────────────┘  └─────────────────────────────┘
-```
+
+> **`effects` 的 key 必须与状态对象字段（见第十节）完全一致**，`performAction` 会遍历 `effects` 逐字段更新。
+> `sleep` 操作会在 `performAction` 内额外切换 `isSleeping` 状态。
 
 ---
 
+## 八、`Storage` 方法签名（C 定义，B 调用）
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `Storage.save(state)` | `state: Object` | `boolean` | 保存存档到 localStorage |
+| `Storage.load()` | 无 | `Object \| null` | 从 localStorage 读取存档 |
+| `Storage.clear()` | 无 | `boolean` | 清除 localStorage 中的存档 |
+| `Storage.hasSave()` | 无 | `boolean` | 检查是否存在存档 |
+| `Storage.getSaveTime()` | 无 | `string \| null` | 获取存档时间的格式化字符串 |
+
+---
+
+## 九、localStorage Key（C 定义，其他人不要直接操作 localStorage）
+
+| key | 值 | 说明 |
+|-----|-----|------|
+| `'pet_companion_save'` | JSON 字符串 | 存档数据，仅 C 通过 `Storage` 对象读写 |
+
+> **规则**：A 和 B 不得直接调用 `localStorage.setItem/getItem/removeItem`，必须通过 `Storage` 对象操作。
+
+---
+
+## 十、状态对象字段（核心契约——三人必须完全一致）
+
+以下字段是 `gameState` 对象的全部属性，**A 需要在 HTML 中定义对应的展示元素，B 负责渲染到 UI，C 负责维护数据逻辑**：
+
+| 字段 | 类型 | 默认值 | 范围 | 中文含义 | 对应 HTML id |
+|------|------|--------|------|----------|-------------|
+| `name` | string | `'小宠物'` | — | 宠物名称 | `pet-name` |
+| `level` | number | `1` | 1+ | 等级 | `level` |
+| `xp` | number | `0` | 0+ | 当前经验值 | `xp` |
+| `age` | number | `0` | 0+ | 存活天数 | `age` |
+| `hunger` | number | `80` | 0-100 | 饱食度 | `hunger-fill` / `hunger-value` |
+| `happiness` | number | `70` | 0-100 | 快乐度 | `happiness-fill` / `happiness-value` |
+| `energy` | number | `90` | 0-100 | 精力 | `energy-fill` / `energy-value` |
+| `hygiene` | number | `60` | 0-100 | 清洁度 | `hygiene-fill` / `hygiene-value` |
+| `health` | number | `100` | 0-100 | 健康值 | （暂未绑定 UI） |
+| `isSleeping` | boolean | `false` | true/false | 是否在睡觉 | 影响宠物表情 |
+| `createdAt` | number | `Date.now()` | — | 创建时间戳 | — |
+| `savedAt` | number | `Date.now()` | — | 最后保存时间戳 | —（仅存档用） |
+| `focusTime` | number | `0` | 0+ | 本次专注时长（分钟） | —（规划中，模块3） |
+| `mood` | string | `'neutral'` | happy/neutral/sad | 学习结束后的情绪标签 | —（规划中，模块3） |
+| `interruptions` | number | `0` | 0+ | 学习过程中断次数 | —（规划中，模块3） |
+
+> **"规划中"** 字段来自 README 模块3（状态记录）和模块4（长期陪伴演化），当前代码尚未实现。C 实现后需同步更新本表。
+
+---
+
+## 十一、app.js 内部变量命名（B 内部使用，但 A 可参考以了解自己的 HTML id 被如何引用）
+
+### 11.1 `el` 对象结构（DOM 引用集合）
+
+```js
+const el = {
+    // 基础信息
+    level:     document.getElementById('level'),
+    xp:        document.getElementById('xp'),
+    xpNext:    document.getElementById('xp-next'),
+    xpFill:    document.getElementById('xp-fill'),
+    age:       document.getElementById('age'),
+    petName:   document.getElementById('pet-name'),
+    petSprite: document.getElementById('pet-sprite'),
+    message:   document.getElementById('pet-message'),
+
+    // 属性面板（每个属性含 fill 和 value 两个子元素）
+    hunger:    { fill: document.getElementById('hunger-fill'),    value: document.getElementById('hunger-value') },
+    happiness: { fill: document.getElementById('happiness-fill'), value: document.getElementById('happiness-value') },
+    energy:    { fill: document.getElementById('energy-fill'),    value: document.getElementById('energy-value') },
+    hygiene:   { fill: document.getElementById('hygiene-fill'),   value: document.getElementById('hygiene-value') },
+
+    // 按钮
+    actionBtns: document.querySelectorAll('.action-btn'),
+    saveBtn:    document.getElementById('save-btn'),
+    loadBtn:    document.getElementById('load-btn'),
+    resetBtn:   document.getElementById('reset-btn')
+};
+```
+
+### 11.2 变量和函数
+
+| 名称 | 类型 | 用途 | 备注 |
+|------|------|------|------|
+| `gameState` | 变量 | 当前宠物状态对象 | 全局变量，类型为状态对象 |
+| `tickInterval` | 变量 | 衰减定时器句柄 | 由 `setInterval` 返回，用于可能的清除 |
+| `TICK_INTERVAL_MS` | 常量 | 衰减定时器间隔（毫秒） | `300000`（5分钟） |
+| `el` | 常量 | DOM 元素引用集合 | 结构见 11.1 |
+| `render()` | 函数 | 渲染所有 UI | 无参数，读取 `gameState` |
+| `updatePetAppearance(s)` | 函数 | 更新宠物表情和动画 class | 参数 `s`: 状态对象，被 `render()` 调用 |
+| `triggerHappyAnimation()` | 函数 | 触发快乐跳跃动画 | 操作后调用，600ms 后恢复 |
+| `showMessage(text, isImportant)` | 函数 | 显示气泡消息 | 带淡入动画 |
+| `handleAction(actionKey)` | 函数 | 操作按钮统一处理 | 调用 `GameLogic.performAction` → `render()` → `Storage.save` |
+| `doTick()` | 函数 | 定时衰减处理 | 调用 `GameLogic.tick` → `render()` → `Storage.save` |
+| `handleSave()` | 函数 | 保存按钮点击处理 | 调用 `Storage.save` |
+| `handleLoad()` | 函数 | 读档按钮点击处理 | 调用 `Storage.load` → `render()` |
+| `handleReset()` | 函数 | 重置按钮点击处理 | 调用 `Storage.clear`，重置为 `GameLogic.defaultState` |
+| `applyOfflineProgress()` | 函数 | 离线时间计算 | 调用 `Storage.load` 和 `GameLogic.tick`，返回 boolean |
+| `init()` | 函数 | 初始化入口 | 页面加载时调用，流程：离线计算 → 加载存档 → 绑定事件 → 启动定时器 |
+
+---
+
+## 十二、修改规则
+
+1. **任何人要新增或修改命名**，必须先更新本文件，再通知其他两人
+2. **字段名冲突**：以上所有命名在各自命名空间内必须唯一
+3. **删除命名**：必须先确认没有其他代码引用，再删除并更新本文件
+4. **本文件是三人协作的"契约"**，代码审查时以本文件为参考标准
