@@ -445,8 +445,15 @@
      * warningAB.md 第6点：专注星信息渲染到 UI
      * ============================================================ */
 
-    // 动态创建专注星 UI（新 id，不与 A 冲突）
+    // 专注星 UI
+    // 按 warningAB 第3.2节，star-count / daily-star-* / focus-block-count 这些 id 由 A 创建、B 渲染。
+    // 这里仅当 A 尚未创建时才兜底动态创建，避免与 A 将来创建的同名 id 重复（HTML id 必须唯一）。
     function initStarsUI() {
+        if (document.getElementById('star-count')) {
+            // A 已在 HTML 中创建了专注星展示元素，B 仅负责渲染（renderStarsInfo 会填充数据）
+            return;
+        }
+        // A 尚未创建（如 A 还没改 HTML），B 兜底创建（容器 id stars-panel 为 B 专用，不与 A 冲突）
         const panel = document.createElement('section');
         panel.id = 'stars-panel';
         panel.style.cssText = 'margin-bottom:16px;padding:14px;background:#fff8e1;border-radius:14px;display:flex;justify-content:space-around;text-align:center;font-size:0.85rem;color:#666;';
