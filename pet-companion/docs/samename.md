@@ -87,14 +87,17 @@
 
 | 值 | 对应操作 | data-action 枚举 |
 |----|----------|------------------|
+| `pet_free` | 抚摸（免费） | `'pet_free'` |
+| `greet` | 打招呼 | `'greet'` |
 | `feed` | 喂食 | `'feed'` |
-| `play` | 玩耍 | `'play'` |
-| `sleep` | 睡觉 | `'sleep'` |
 | `clean` | 洗澡 | `'clean'` |
-| `heal` | 治疗 | `'heal'` |
+| `highfive` | 击掌 | `'highfive'` |
+| `cheer` | 加油 | `'cheer'` |
+| `pet_extra` | 抚摸（额外） | `'pet_extra'` |
+| `sleep` | 睡觉（快速充电） | `'sleep'` |
 
 > B 读取：`this.dataset.action` → 传给 `GameLogic.performAction(state, actionKey)`  
-> C 在 `GameLogic.actions` 中必须定义完全相同的 5 个 key
+> C 在 `GameLogic.actions` 中必须定义完全相同的 8 个 key（`play`、`heal` 已移除，新增 6 个）
 
 ---
 
@@ -116,7 +119,7 @@
 | 路径 | 类型 | 说明 |
 |------|------|------|
 | `GameLogic.defaultState` | Object | 宠物初始状态默认值 |
-| `GameLogic.actions` | Object | 5 种操作的配置集合 |
+| `GameLogic.actions` | Object | 8 种操作的配置集合（含 cost 专注星消耗字段） |
 
 ### 7.2 方法签名
 
@@ -125,54 +128,84 @@
 | `GameLogic.xpForLevel(level)` | `level: number` | `number` | 根据等级计算所需经验值 |
 | `GameLogic.addXp(state, amount)` | `state: Object, amount: number` | `number` | 增加经验，返回新等级 |
 | `GameLogic.performAction(state, actionKey)` | `state: Object, actionKey: string` | `{ state: Object, message: string }` | 执行操作，返回新状态和消息 |
-| `GameLogic.tick(state, minutes)` | `state: Object, minutes: number` | `Object` | 属性衰减计算，返回新状态。**注意：当前仍保留健康值归零重置逻辑，后续将按 `animallogicC.md` 新设计移除（亲密度替代健康值，永不归零）** |
+| `GameLogic.tick(state, minutes)` | `state: Object, minutes: number` | `Object` | 属性衰减计算，返回新状态。采用小时级极慢衰减，已移除健康值归零重置逻辑，符合 `animallogicC.md` "不惩罚" 原则 |
 | `GameLogic.getWarning(state)` | `state: Object` | `string \| null` | 检查低属性警告，返回消息或 null |
+| `GameLogic.claimDailyLogin(state)` | `state: Object` | `{ state: Object, message: string \| null, claimed: boolean }` | 每日首次登录奖励 2 专注星 |
+| `GameLogic.enterFocus(state)` | `state: Object` | `Object` | 标记进入专注状态 |
+| `GameLogic.leaveFocus(state)` | `state: Object` | `{ state: Object, message: string \| null, starsEarned: number }` | 离开专注状态，结算专注星 |
+| `GameLogic.tickFocus(state)` | `state: Object` | `{ state: Object, message: string \| null }` | 每5分钟累加专注区块，达到24块自动结算 |
+| `GameLogic.getStarsInfo(state)` | `state: Object` | `{ stars: number, dailyStars: number, dailyRemaining: number, sessionBlocks: number }` | 获取当前专注星信息 |
 
 ### 7.3 `GameLogic.actions` 子结构（C 定义，B 通过 `performAction` 间接使用）
 
-每个 action 的结构如下（以 `feed` 为例）：
+每个 action 的结构如下（以 `feed` 为例，新增 `cost` 字段表示专注星消耗）：
 
 ```js
 GameLogic.actions = {
+    // ─── 免费互动（cost=0） ───
+    pet_free: {
+        label: '抚摸',
+        effects: { affection: 1, happiness: 2 },
+        cost: 0,         // 免费
+        xpReward: 3,
+        message: '😊 暖暖的～'
+    },
+    greet: {
+        label: '打招呼',
+        effects: { happiness: 1 },
+        cost: 0,
+        xpReward: 2,
+        message: '👋 它抬头看了你一眼'
+    },
+    // ─── 点数互动（cost>0） ───
     feed: {
-        label: '喂食',              // 操作名称（展示用）
-        effects: {                   // 属性增减量（+ 增加 / - 减少）
-            hunger: 20,              // 饱食度变化
-            happiness: 5,            // 快乐度变化
-            energy: 5                // 精力变化
-        },
-        xpReward: 15,                // 操作获得的经验值
-        message: '🍔 好吃～谢谢你！'  // 操作后显示的消息
-    },
-    play: {
-        label: '玩耍',
-        effects: { happiness: 25, energy: -15, hunger: -5 },
-        xpReward: 20,
-        message: '🎉 好开心呀！'
-    },
-    sleep: {
-        label: '睡觉',
-        effects: { energy: 30, happiness: 5, hunger: -3 },
-        xpReward: 10,
-        message: '😴 晚安～'
+        label: '喂食',
+        effects: { hunger: 15 },
+        cost: 3,
+        xpReward: 15,
+        message: '🍔 好吃～谢谢你！'
     },
     clean: {
         label: '洗澡',
-        effects: { hygiene: 30, happiness: 5, energy: -5 },
+        effects: { hygiene: 20 },
+        cost: 3,
         xpReward: 12,
         message: '🧼 好干净！'
     },
-    heal: {
-        label: '治疗',
-        effects: { health: 30, happiness: -5, energy: -10 },
-        xpReward: 18,
-        message: '💊 感觉好多了！'
+    highfive: {
+        label: '击掌',
+        effects: { energy: 5, happiness: 3 },
+        cost: 2,
+        xpReward: 10,
+        message: '✋ 啪！配合完美！'
+    },
+    cheer: {
+        label: '加油',
+        effects: { happiness: 5 },
+        cost: 1,
+        xpReward: 5,
+        message: '💪 加油加油！'
+    },
+    pet_extra: {
+        label: '抚摸（额外）',
+        effects: { affection: 2, happiness: 3 },
+        cost: 1,
+        xpReward: 8,
+        message: '🥰 它蹭了蹭你的手'
+    },
+    sleep: {
+        label: '睡觉（快速充电）',
+        effects: { energy: 20 },
+        cost: 2,
+        xpReward: 10,
+        message: '😴 充能完毕！'
     }
 };
 ```
 
 > **`effects` 的 key 必须与状态对象字段（见第十节）完全一致**，`performAction` 会遍历 `effects` 逐字段更新。
-> `sleep` 操作会在 `performAction` 内额外切换 `isSleeping` 状态。
+> **`cost`**：专注星消耗量，`cost=0` 表示免费互动。
+> **亲密度 (`affection`)**：无上限，`performAction` 不会对其做 0-100 截断。
 
 ---
 
@@ -212,18 +245,22 @@ GameLogic.actions = {
 | `happiness` | number | `70` | 0-100 | 快乐度 | `happiness-fill` / `happiness-value` |
 | `energy` | number | `90` | 0-100 | 精力 | `energy-fill` / `energy-value` |
 | `hygiene` | number | `60` | 0-100 | 清洁度 | `hygiene-fill` / `hygiene-value` |
-| `health` | number | `100` | 0-100 | 健康值 | （暂未绑定 UI，后续将替换为 `affection`） |
 | `isSleeping` | boolean | `false` | true/false | 是否在睡觉 | 影响宠物表情 |
 | `createdAt` | number | `Date.now()` | — | 创建时间戳 | — |
 | `savedAt` | number | `Date.now()` | — | 最后保存时间戳 | —（仅存档用） |
 | `focusTime` | number | `0` | 0+ | 本次专注时长（分钟） | —（已实现） |
 | `mood` | string | `'neutral'` | happy/neutral/sad | 学习结束后的情绪标签 | —（已实现） |
 | `interruptions` | number | `0` | 0+ | 学习过程中断次数 | —（已实现） |
-| `affection` | number | `0` | 0+（无上限） | 亲密度（新设计，替代 health） | —（待实现，参考 `animallogicC.md`） |
-| `stars` | number | `0` | 0+（软上限） | 专注星（奖励点数） | —（待实现，参考 `animallogicC.md`） |
+| `affection` | number | `0` | 0+（无上限） | 亲密度（长期陪伴见证） | —（已实现，通过 `pet_free`/`pet_extra` 互动增加） |
+| `stars` | number | `0` | 0+（软上限） | 专注星（奖励点数） | —（已实现） |
+| `dailyStars` | number | `0` | 0-80 | 当日已获专注星数 | —（已实现，每日重置） |
+| `lastDailyReset` | number | `0` | — | 上次每日重置时间戳 | —（仅内部使用） |
+| `lastDailyLoginClaim` | number | `0` | — | 上次领取登录奖励时间戳 | —（仅内部使用） |
+| `isFocused` | boolean | `false` | true/false | 是否处于专注状态 | —（已实现，B 控制状态切换） |
+| `focusBlocks` | number | `0` | 0-24 | 专注时段累计区块数 | —（已实现，每块=5分钟专注） |
 
-> **已实现**：`focusTime`、`mood`、`interruptions` 三个字段已在 `gameLogic.js` 的 `defaultState` 中添加。  
-> **待实现**：`affection`（亲密度）和 `stars`（专注星）来自 `animallogicC.md` 的新设计，后续实现后需同步更新本表。
+> **已实现**：`focusTime`、`mood`、`interruptions`、`affection`、`stars`、`dailyStars`、`lastDailyReset`、`lastDailyLoginClaim`、`isFocused`、`focusBlocks` 已在 `gameLogic.js` 的 `defaultState` 中添加。  
+> **已移除**：`health`（健康值系统）已按 `animallogicC.md` 新设计移除，不再衰减也不会归零重置。
 
 ---
 
