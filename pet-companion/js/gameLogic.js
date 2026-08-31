@@ -16,6 +16,9 @@ const GameLogic = {
         hygiene: 60,      // 清洁度 0-100
         health: 100,      // 健康值 0-100
         isSleeping: false,
+        focusTime: 0,     // 本次专注时长（分钟）
+        mood: 'neutral',  // 情绪标签：happy / neutral / sad
+        interruptions: 0, // 中断次数
         createdAt: Date.now()
     },
 

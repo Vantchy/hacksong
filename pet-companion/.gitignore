@@ -1,0 +1,27 @@
+# 操作系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器/IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 依赖
+node_modules/
+
+# 项目临时文件
+*.log
+tmp/
+temp/
+
+# 环境/隐私文件
+.env
+.env.local
+
+# 版本备份
+*.bak
+*.backup

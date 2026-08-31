@@ -125,7 +125,7 @@
 | `GameLogic.xpForLevel(level)` | `level: number` | `number` | 根据等级计算所需经验值 |
 | `GameLogic.addXp(state, amount)` | `state: Object, amount: number` | `number` | 增加经验，返回新等级 |
 | `GameLogic.performAction(state, actionKey)` | `state: Object, actionKey: string` | `{ state: Object, message: string }` | 执行操作，返回新状态和消息 |
-| `GameLogic.tick(state, minutes)` | `state: Object, minutes: number` | `Object` | 属性衰减计算，返回新状态。**注意：健康值归零时返回 `defaultState`（全新状态）** |
+| `GameLogic.tick(state, minutes)` | `state: Object, minutes: number` | `Object` | 属性衰减计算，返回新状态。**注意：当前仍保留健康值归零重置逻辑，后续将按 `animallogicC.md` 新设计移除（亲密度替代健康值，永不归零）** |
 | `GameLogic.getWarning(state)` | `state: Object` | `string \| null` | 检查低属性警告，返回消息或 null |
 
 ### 7.3 `GameLogic.actions` 子结构（C 定义，B 通过 `performAction` 间接使用）
@@ -212,15 +212,18 @@ GameLogic.actions = {
 | `happiness` | number | `70` | 0-100 | 快乐度 | `happiness-fill` / `happiness-value` |
 | `energy` | number | `90` | 0-100 | 精力 | `energy-fill` / `energy-value` |
 | `hygiene` | number | `60` | 0-100 | 清洁度 | `hygiene-fill` / `hygiene-value` |
-| `health` | number | `100` | 0-100 | 健康值 | （暂未绑定 UI） |
+| `health` | number | `100` | 0-100 | 健康值 | （暂未绑定 UI，后续将替换为 `affection`） |
 | `isSleeping` | boolean | `false` | true/false | 是否在睡觉 | 影响宠物表情 |
 | `createdAt` | number | `Date.now()` | — | 创建时间戳 | — |
 | `savedAt` | number | `Date.now()` | — | 最后保存时间戳 | —（仅存档用） |
-| `focusTime` | number | `0` | 0+ | 本次专注时长（分钟） | —（规划中，模块3） |
-| `mood` | string | `'neutral'` | happy/neutral/sad | 学习结束后的情绪标签 | —（规划中，模块3） |
-| `interruptions` | number | `0` | 0+ | 学习过程中断次数 | —（规划中，模块3） |
+| `focusTime` | number | `0` | 0+ | 本次专注时长（分钟） | —（已实现） |
+| `mood` | string | `'neutral'` | happy/neutral/sad | 学习结束后的情绪标签 | —（已实现） |
+| `interruptions` | number | `0` | 0+ | 学习过程中断次数 | —（已实现） |
+| `affection` | number | `0` | 0+（无上限） | 亲密度（新设计，替代 health） | —（待实现，参考 `animallogicC.md`） |
+| `stars` | number | `0` | 0+（软上限） | 专注星（奖励点数） | —（待实现，参考 `animallogicC.md`） |
 
-> **"规划中"** 字段来自 README 模块3（状态记录）和模块4（长期陪伴演化），当前代码尚未实现。C 实现后需同步更新本表。
+> **已实现**：`focusTime`、`mood`、`interruptions` 三个字段已在 `gameLogic.js` 的 `defaultState` 中添加。  
+> **待实现**：`affection`（亲密度）和 `stars`（专注星）来自 `animallogicC.md` 的新设计，后续实现后需同步更新本表。
 
 ---
 
