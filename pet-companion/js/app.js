@@ -74,7 +74,8 @@
     // 深呼吸启动动作时长
     const BREATHE_SECONDS = 60;
 
-    // ===== [B] 长期画像（模块3/4 数据，附加到 gameState 通过 Storage 持久化）=====
+    // ===== [B] 长期画像（模块3/4 数据，通过 gameState._bProfile 附加，走 Storage 持久化）=====
+    // ⚠ _bProfile 是 B 侧临时字段，非 samename.md 契约字段。待 C 实现 history/getAnalysis 后迁移。
     let profile = {
         sessions: [],        // 每次学习记录 {date, startHour, focusMin, interruptions, mood}
         focusUpperLimit: 0,  // 发现的专注上限（分钟）
@@ -227,7 +228,7 @@
         if (data) {
             gameState = data;
             // 恢复附加的 profile 数据
-            if (data.profile) profile = data.profile;
+            if (data._bProfile) profile = data._bProfile;
             render();
             renderProfile();
             showMessage('📂 读档成功！');
@@ -246,10 +247,13 @@
         showMessage('🗑️ 已重置');
     }
 
-    // ===== [B] 保存状态（附加 profile，通过 C 的 Storage 接口）=====
+    // ===== [B] 保存状态（附加 _bProfile，通过 C 的 Storage 接口）=====
     function saveGameState() {
-        // 将 profile 附加到 gameState 一起持久化（C 的 spread 操作会保留额外字段）
-        gameState.profile = profile;
+        // 将 _bProfile 附加到 gameState 一起持久化（C 的 spread 操作会保留额外字段）
+        // ⚠ _bProfile 是 B 侧临时扩展字段（非 samename.md 契约字段），下划线+B前缀避免与 C 的
+        //   计划字段 history 冲突。待 C 实现 GameLogic.getAnalysis()/history 后，B 应迁移到调用
+        //   C 的接口，并移除本字段。（参考 docs/warningC.md 优先级3）
+        gameState._bProfile = profile;
         return Storage.save(gameState);
     }
 
@@ -277,7 +281,7 @@
 
         gameState = state;
         // 恢复 profile
-        if (saved.profile) profile = saved.profile;
+        if (saved._bProfile) profile = saved._bProfile;
         render();
 
         if (minutesElapsed >= 1) {
@@ -754,7 +758,7 @@
             const saved = Storage.load();
             if (saved) {
                 gameState = saved;
-                if (saved.profile) profile = saved.profile;
+                if (saved._bProfile) profile = saved._bProfile;
                 showMessage('📂 欢迎回来！');
             } else {
                 gameState = { ...GameLogic.defaultState, createdAt: Date.now() };
