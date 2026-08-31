@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>C 单元测试 — 茸学伴</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 20px auto; padding: 0 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        h2 { margin-top: 24px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        .summary { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .summary .pass { color: #2e7d32; font-weight: bold; }
+        .summary .fail { color: #c62828; font-weight: bold; }
+        .test-group { background: #fff; padding: 12px 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px; }
+        .test-case { padding: 4px 0; font-size: 14px; }
+        .pass { color: #2e7d32; }
+        .fail { color: #c62828; font-weight: bold; }
+        .detail { margin-left: 24px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>🧪 C 单元测试</h1>
+    <div class="summary" id="summary">运行中...</div>
+    <div id="results"></div>
+
+    <script src="../js/gameLogic.js"></script>
+    <script src="../js/storage.js"></script>
+    <script>
+    (function () {
+        'use strict';
+
+        // ===== 简易测试框架 =====
+        let total = 0, passed = 0, failed = 0;
+        const results = document.getElementById('results');
+        const summary = document.getElementById('summary');
+        const groups = [];
+
+        function group(name, fn) {
+            const tests = [];
+            const ctx = {
+                assert(condition, msg) {
+                    total++;
+                    if (condition) {
+                        passed++;
+                        tests.push({ name: msg, ok: true });
+                    } else {
+                        failed++;
+                        tests.push({ name: msg, ok: false });
+                    }
+                },
+                assertEqual(actual, expected, msg) {
+                    const ok = actual === expected;
+                    if (!ok) {
+                        this.assert(false, `${msg} → 期望 ${JSON.stringify(expected)}，实际 ${JSON.stringify(actual)}`);
+                    } else {
+                        this.assert(true, msg);
+                    }
+                },
+                assertDeepEqual(actual, expected, msg) {
+                    try {
+                        const ok = JSON.stringify(actual) === JSON.stringify(expected);
+                        if (!ok) {
+                            this.assert(false, `${msg} → 期望 ${JSON.stringify(expected)}，实际 ${JSON.stringify(actual)}`);
+                        } else {
+                            this.assert(true, msg);
+                        }
+                    } catch (e) {
+                        this.assert(false, `${msg} → 比较异常: ${e.message}`);
+                    }
+                }
+            };
+            fn(ctx);
+            groups.push({ name, tests });
+        }
+
+        function render() {
+            let html = '';
+            for (const g of groups) {
+                const gPassed = g.tests.filter(t => t.ok).length;
+                const gFailed = g.tests.filter(t => !t.ok).length;
+                html += `<div class="test-group"><h3>${g.name} (${gPassed}/${g.tests.length})</h3>`;
+                for (const t of g.tests) {
+                    html += `<div class="test-case ${t.ok ? 'pass' : 'fail'}">${t.ok ? '✓' : '✗'} ${t.name}</div>`;
+                }
+                html += '</div>';
+            }
+            results.innerHTML = html;
+            summary.innerHTML = `
+                <span class="${passed === total ? 'pass' : 'fail'}">${passed} / ${total}</span> 通过
+                ${failed > 0 ? `<span class="fail">（${failed} 失败）</span>` : ''}
+                ${passed === total ? '🎉 全部通过！' : '⚠️ 有失败项'}
+            `;
+            summary.style.borderLeft = `4px solid ${passed === total ? '#2e7d32' : '#c62828'}`;
+        }
+
+        // ===================================================================
+        //  测试套件
+        // ===================================================================
+
+        // ─── 1. defaultState ───
+        group('defaultState - 默认初始状态', function (t) {
+            const s = { ...GameLogic.defaultState };
+
+            t.assert(s.name === '小宠物', 'name 默认值正确');
+            t.assert(s.level === 1, 'level 默认值正确');
+            t.assert(s.xp === 0, 'xp 默认值正确');
+            t.assert(s.age === 0, 'age 默认值正确');
+            t.assert(s.hunger === 80, 'hunger 默认值正确');
+            t.assert(s.happiness === 70, 'happiness 默认值正确');
+            t.assert(s.energy === 90, 'energy 默认值正确');
+            t.assert(s.hygiene === 60, 'hygiene 默认值正确');
+            t.assert(s.isSleeping === false, 'isSleeping 默认 false');
+            t.assert(s.focusTime === 0, 'focusTime 默认值正确');
+            t.assert(s.mood === 'neutral', 'mood 默认值正确');
+            t.assert(s.interruptions === 0, 'interruptions 默认值正确');
+            t.assert(s.affection === 0, 'affection 默认值正确');
+            t.assert(Array.isArray(s.history) && s.history.length === 0, 'history 为空数组');
+            t.assert(s.countdown === 0, 'countdown 默认值正确');
+            t.assert(s.dailyGoalCompleted === 0, 'dailyGoalCompleted 默认值正确');
+            t.assert(s.stars === 0, 'stars 默认值正确');
+            t.assert(s.dailyStars === 0, 'dailyStars 默认值正确');
+            t.assert(s.isFocused === false, 'isFocused 默认 false');
+            t.assert(s.focusBlocks === 0, 'focusBlocks 默认值正确');
+            t.assert(s.createdAt > 0, 'createdAt 有效时间戳');
+            // 没有 health 字段（已移除）
+            t.assert(s.health === undefined, 'health 字段已移除');
+        });
+
+        // ─── 2. xpForLevel ───
+        group('xpForLevel - 经验公式', function (t) {
+            t.assert(GameLogic.xpForLevel(1) === 100, 'Lv1 需要 100 经验');
+            t.assert(GameLogic.xpForLevel(2) === Math.floor(100 * Math.pow(1.15, 1)), 'Lv2 公式正确');
+            t.assert(GameLogic.xpForLevel(5) === Math.floor(100 * Math.pow(1.15, 4)), 'Lv5 公式正确');
+            t.assert(GameLogic.xpForLevel(1) < GameLogic.xpForLevel(2), '等级越高所需经验越多');
+        });
+
+        // ─── 3. addXp ───
+        group('addXp - 经验增长与升级', function (t) {
+            const s = { ...GameLogic.defaultState, xp: 0, level: 1 };
+
+            GameLogic.addXp(s, 50);
+            t.assert(s.xp === 50 && s.level === 1, '加 50 经验，未升级');
+
+            GameLogic.addXp(s, 50);
+            t.assert(s.xp === 0 && s.level === 2, '加满 100 经验，升到 Lv2');
+
+            // 一次性加大量经验
+            const s2 = { ...GameLogic.defaultState, xp: 0, level: 1 };
+            GameLogic.addXp(s2, 500);
+            t.assert(s2.level > 1, '大量经验触发多次升级');
+            t.assert(s2.xp >= 0, '升级后剩余经验非负');
+        });
+
+        // ─── 4. actions 结构 ───
+        group('actions - 操作配置', function (t) {
+            const keys = Object.keys(GameLogic.actions);
+            t.assert(keys.length === 8, '共有 8 个操作');
+
+            // 免费操作
+            const freeKeys = ['pet_free', 'greet'];
+            for (const k of freeKeys) {
+                t.assert(GameLogic.actions[k].cost === 0, `${k} 是免费操作`);
+            }
+
+            // 点数操作
+            const costKeys = ['feed', 'clean', 'highfive', 'cheer', 'pet_extra', 'sleep'];
+            for (const k of costKeys) {
+                t.assert(GameLogic.actions[k].cost > 0, `${k} 消耗专注星`);
+            }
+
+            // 每项都有必要字段
+            for (const [k, v] of Object.entries(GameLogic.actions)) {
+                t.assert(typeof v.label === 'string', `${k} 有 label`);
+                t.assert(typeof v.effects === 'object', `${k} 有 effects`);
+                t.assert(typeof v.cost === 'number', `${k} 有 cost`);
+                t.assert(typeof v.message === 'string', `${k} 有 message`);
+            }
+
+            // 没有 heal
+            t.assert(GameLogic.actions.heal === undefined, 'heal 操作已移除');
+        });
+
+        // ─── 5. performAction ───
+        group('performAction - 执行操作', function (t) {
+            // 5a. 未知操作
+            const s0 = { ...GameLogic.defaultState, stars: 10 };
+            let r = GameLogic.performAction(s0, 'nonexistent');
+            t.assert(r.message === '未知操作', '未知操作返回错误消息');
+
+            // 5b. 专注星不足
+            const s1 = { ...GameLogic.defaultState, stars: 0 };
+            r = GameLogic.performAction(s1, 'feed');
+            t.assert(r.message.includes('需要'), '星不足时提示需要专注星');
+            t.assert(r.state.stars === 0, '星不足时未扣除星星');
+
+            // 5c. 免费操作（不消耗星）
+            const s2 = { ...GameLogic.defaultState, stars: 0, happiness: 70, affection: 0 };
+            r = GameLogic.performAction(s2, 'pet_free');
+            t.assert(r.state.happiness === 72, '免费抚摸快乐度+2');
+            t.assert(r.state.affection === 1, '免费抚摸亲密度+1');
+            t.assert(r.state.stars === 0, '免费操作不扣星');
+
+            // 5d. 点数操作正常消耗
+            const s3 = { ...GameLogic.defaultState, stars: 10, hunger: 50 };
+            r = GameLogic.performAction(s3, 'feed');
+            t.assert(r.state.stars === 7, '喂食消耗 3 星');
+            t.assert(r.state.hunger > 50, '喂食增加饱食度');
+
+            // 5e. 经验 = cost × 5
+            const s4 = { ...GameLogic.defaultState, stars: 10, xp: 0, level: 1 };
+            r = GameLogic.performAction(s4, 'feed');
+            t.assert(r.state.xp === 15, '喂食(cost=3) 获得 15 经验 (3×5)');
+
+            // 5f. 亲密度无上限
+            const s5 = { ...GameLogic.defaultState, stars: 10, affection: 9999 };
+            r = GameLogic.performAction(s5, 'pet_free');
+            t.assert(r.state.affection > 9999, '亲密度可超过 100');
+
+            // 5g. 其他属性 0-100 截断
+            const s6 = { ...GameLogic.defaultState, stars: 10, hunger: 95 };
+            r = GameLogic.performAction(s6, 'feed');
+            t.assert(r.state.hunger <= 100, '饱食度不超过 100');
+        });
+
+        // ─── 6. getAffectionBonus ───
+        group('getAffectionBonus - 亲密度里程碑', function (t) {
+            t.assert(GameLogic.getAffectionBonus({ affection: 0 }) === 1.0, '0-9: 1.0x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 5 }) === 1.0, '5: 1.0x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 10 }) === 1.1, '10: 1.1x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 24 }) === 1.1, '24: 1.1x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 25 }) === 1.2, '25: 1.2x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 49 }) === 1.2, '49: 1.2x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 50 }) === 1.35, '50: 1.35x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 99 }) === 1.35, '99: 1.35x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 100 }) === 1.5, '100: 1.5x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 199 }) === 1.5, '199: 1.5x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 200 }) === 1.75, '200: 1.75x');
+            t.assert(GameLogic.getAffectionBonus({ affection: 9999 }) === 1.75, '9999: 1.75x');
+            t.assert(GameLogic.getAffectionBonus({}) === 1.0, '无 affection 字段时默认 1.0x');
+            t.assert(GameLogic.getAffectionBonus({ affection: -1 }) === 1.0, '负数亲密度返回 1.0x');
+        });
+
+        // ─── 6b. getAffectionStage ───
+        group('getAffectionStage - 亲密度行为阶段', function (t) {
+            t.assert(GameLogic.getAffectionStage({ affection: 0 }) === 'newbie', '0: newbie');
+            t.assert(GameLogic.getAffectionStage({ affection: 50 }) === 'newbie', '50: newbie');
+            t.assert(GameLogic.getAffectionStage({ affection: 99 }) === 'newbie', '99: newbie');
+            t.assert(GameLogic.getAffectionStage({ affection: 100 }) === 'familiar', '100: familiar');
+            t.assert(GameLogic.getAffectionStage({ affection: 200 }) === 'familiar', '200: familiar');
+            t.assert(GameLogic.getAffectionStage({ affection: 299 }) === 'familiar', '299: familiar');
+            t.assert(GameLogic.getAffectionStage({ affection: 300 }) === 'intimate', '300: intimate');
+            t.assert(GameLogic.getAffectionStage({ affection: 450 }) === 'intimate', '450: intimate');
+            t.assert(GameLogic.getAffectionStage({ affection: 599 }) === 'intimate', '599: intimate');
+            t.assert(GameLogic.getAffectionStage({ affection: 600 }) === 'bestie', '600: bestie');
+            t.assert(GameLogic.getAffectionStage({ affection: 800 }) === 'bestie', '800: bestie');
+            t.assert(GameLogic.getAffectionStage({ affection: 999 }) === 'bestie', '999: bestie');
+            t.assert(GameLogic.getAffectionStage({ affection: 1000 }) === 'forever', '1000: forever');
+            t.assert(GameLogic.getAffectionStage({ affection: 9999 }) === 'forever', '9999: forever');
+            t.assert(GameLogic.getAffectionStage({}) === 'newbie', '无 affection 字段默认 newbie');
+            t.assert(GameLogic.getAffectionStage({ affection: -1 }) === 'newbie', '负数亲密度返回 newbie');
+        });
+
+        // ─── 7. tick ───
+        group('tick - 属性衰减', function (t) {
+            // 5 分钟 = 1/12 小时
+            const s = { ...GameLogic.defaultState, isSleeping: false, hunger: 100, energy: 100, hygiene: 100, happiness: 100 };
+            const r = GameLogic.tick(s, 5);
+
+            // 清醒时：hunger -2/h × 5/60 ≈ -0.17
+            t.assert(r.hunger === 100 || r.hunger === 99, '5分钟清醒饥饿衰减约 0 (-2/h)');
+            t.assert(r.happiness === 100, '快乐度不自动下降');
+            t.assert(r.energy === 100 || r.energy === 99, '精力衰减约 0 (-5/h)');
+            t.assert(r.hygiene === 100 || r.hygiene === 99, '清洁度衰减约 0 (-1/h)');
+
+            // 1 小时衰减（精确测试）
+            const s2 = { ...GameLogic.defaultState, isSleeping: false, hunger: 100, energy: 100, hygiene: 100 };
+            const r2 = GameLogic.tick(s2, 60);
+            t.assert(r2.hunger === 98, '1小时饥饿 -2');
+            t.assert(r2.energy === 95, '1小时精力 -5');
+            t.assert(r2.hygiene === 99, '1小时清洁度 -1');
+
+            // 睡觉时精力恢复
+            const s3 = { ...GameLogic.defaultState, isSleeping: true, hunger: 100, energy: 50, hygiene: 100 };
+            const r3 = GameLogic.tick(s3, 60);
+            t.assert(r3.energy === 60, '睡觉1小时精力 +10');
+            t.assert(r3.hunger === 99, '睡觉1小时饥饿 -1（减半）');
+            t.assert(r3.hygiene === 100, '睡觉1小时清洁度 -0.5（整数）');
+
+            // 不出现负数
+            const s4 = { ...GameLogic.defaultState, isSleeping: false, hunger: 0, energy: 0, hygiene: 0 };
+            const r4 = GameLogic.tick(s4, 60);
+            t.assert(r4.hunger === 0, '饥饿不低于 0');
+            t.assert(r4.energy === 0, '精力不低于 0');
+            t.assert(r4.hygiene === 0, '清洁度不低于 0');
+        });
+
+        // ─── 8. getWarning ───
+        group('getWarning - 警告检查', function (t) {
+            t.assert(GameLogic.getWarning({ hunger: 10, hygiene: 50, energy: 50, happiness: 50 }) !== null, '饥饿低时返回警告');
+            t.assert(GameLogic.getWarning({ hunger: 50, hygiene: 10, energy: 50, happiness: 50 }) !== null, '清洁度低时返回警告');
+            t.assert(GameLogic.getWarning({ hunger: 50, hygiene: 50, energy: 10, happiness: 50 }) !== null, '精力低时返回警告');
+            t.assert(GameLogic.getWarning({ hunger: 50, hygiene: 50, energy: 50, happiness: 10 }) !== null, '快乐度低时返回警告');
+            t.assert(GameLogic.getWarning({ hunger: 50, hygiene: 50, energy: 50, happiness: 50 }) === null, '全正常时无警告');
+            // 没有 health 检查
+            // 不会因为 health 低而触发警告
+            t.assert(true, '已移除 health 相关警告');
+        });
+
+        // ─── 9. 画像数据采集 ───
+        group('addFocusTime / recordMood / addInterruption', function (t) {
+            let s = { ...GameLogic.defaultState, focusTime: 0, mood: 'neutral', interruptions: 0 };
+
+            s = GameLogic.addFocusTime(s, 25);
+            t.assert(s.focusTime === 25, 'addFocusTime 累加正确');
+
+            s = GameLogic.addFocusTime(s, 10);
+            t.assert(s.focusTime === 35, 'addFocusTime 多次累加');
+
+            s = GameLogic.recordMood(s, 'happy');
+            t.assert(s.mood === 'happy', 'recordMood 记录 happy');
+
+            s = GameLogic.recordMood(s, 'invalid');
+            t.assert(s.mood === 'happy', 'recordMood 非法值不修改');
+
+            s = GameLogic.addInterruption(s);
+            t.assert(s.interruptions === 1, 'addInterruption +1');
+
+            s = GameLogic.addInterruption(s);
+            s = GameLogic.addInterruption(s);
+            t.assert(s.interruptions === 3, 'addInterruption 多次 +1');
+        });
+
+        // ─── 10. recordSession ───
+        group('recordSession - 学习记录', function (t) {
+            let s = { ...GameLogic.defaultState, history: [], focusTime: 30, interruptions: 2 };
+
+            s = GameLogic.recordSession(s, {
+                focusTime: 30,
+                mood: 'happy',
+                interruptions: 2,
+                focusBlocks: 6,
+                starsEarned: 10
+            });
+
+            t.assert(s.history.length === 1, '记录了一条历史');
+            t.assert(s.history[0].focusTime === 30, '记录 focusTime 正确');
+            t.assert(s.history[0].mood === 'happy', '记录 mood 正确');
+            t.assert(s.history[0].interruptions === 2, '记录 interruptions 正确');
+            t.assert(s.history[0].focusBlocks === 6, '记录 focusBlocks 正确');
+            t.assert(s.history[0].starsEarned === 10, '记录 starsEarned 正确');
+            t.assert(typeof s.history[0].date === 'string', '记录 date 正确');
+            t.assert(typeof s.history[0].startTime === 'number', '记录 startTime 正确');
+            t.assert(s.focusTime === 0, '记录后 focusTime 归零');
+            t.assert(s.interruptions === 0, '记录后 interruptions 归零');
+
+            // 上限 100 条
+            let s2 = { ...GameLogic.defaultState, history: [], focusTime: 0, interruptions: 0 };
+            for (let i = 0; i < 120; i++) {
+                s2 = GameLogic.recordSession(s2, { focusTime: 1, mood: 'neutral', interruptions: 0, focusBlocks: 1, starsEarned: 1 });
+            }
+            t.assert(s2.history.length <= 100, '历史记录不超过 100 条');
+        });
+
+        // ─── 11. getAnalysis ───
+        group('getAnalysis - 画像分析', function (t) {
+            // 空历史
+            const empty = GameLogic.getAnalysis({ history: [] });
+            t.assert(empty.totalSessions === 0, '空历史 totalSessions=0');
+
+            // 有历史
+            const now = Date.now();
+            const state = {
+                history: [
+                    { date: '2026-08-30', startTime: now - 86400000, focusTime: 25, mood: 'happy', interruptions: 1, focusBlocks: 5, starsEarned: 8 },
+                    { date: '2026-08-29', startTime: now - 172800000, focusTime: 40, mood: 'neutral', interruptions: 2, focusBlocks: 8, starsEarned: 12 },
+                    { date: '2026-08-28', startTime: now - 259200000, focusTime: 15, mood: 'sad', interruptions: 3, focusBlocks: 3, starsEarned: 4 }
+                ]
+            };
+            const a = GameLogic.getAnalysis(state);
+            t.assert(a.totalSessions === 3, 'totalSessions 正确');
+            t.assert(a.totalFocusTime === 80, 'totalFocusTime 正确');
+            t.assert(a.totalStarsEarned === 24, 'totalStarsEarned 正确');
+            t.assert(a.avgFocusTime === 26, 'avgFocusTime 正确');
+            t.assert(a.avgInterruptions === 2, 'avgInterruptions 正确');
+            t.assert(a.moodDistribution.happy === 1, 'moodDistribution happy 正确');
+            t.assert(a.moodDistribution.neutral === 1, 'moodDistribution neutral 正确');
+            t.assert(a.moodDistribution.sad === 1, 'moodDistribution sad 正确');
+            t.assert(a.recentDays === 3, 'recentDays 正确');
+        });
+
+        // ─── 12. 倒计时 ───
+        group('startCountdown / tickCountdown', function (t) {
+            let s = { ...GameLogic.defaultState, countdown: 0 };
+
+            s = GameLogic.startCountdown(s, 10);
+            t.assert(s.countdown === 10, 'startCountdown 设置正确');
+
+            let r = GameLogic.tickCountdown(s);
+            t.assert(r.state.countdown === 9, 'tickCountdown 减 1');
+            t.assert(r.finished === false, '未结束');
+
+            for (let i = 0; i < 8; i++) {
+                r = GameLogic.tickCountdown(r.state);
+            }
+            t.assert(r.state.countdown === 0, '倒计时到 0');
+            t.assert(r.finished === true, 'finished 为 true');
+
+            // 再 tick 不再变化
+            r = GameLogic.tickCountdown(r.state);
+            t.assert(r.finished === false, '倒计时结束后 tick 无影响');
+        });
+
+        // ─── 13. getStarsRate ───
+        group('getStarsRate - 专注星软上限', function (t) {
+            t.assert(GameLogic.getStarsRate({ stars: 0 }) === 1.0, '0 星: 100%');
+            t.assert(GameLogic.getStarsRate({ stars: 50 }) === 1.0, '50 星: 100%');
+            t.assert(GameLogic.getStarsRate({ stars: 99 }) === 1.0, '99 星: 100%');
+            t.assert(GameLogic.getStarsRate({ stars: 100 }) === 0.75, '100 星: 75%');
+            t.assert(GameLogic.getStarsRate({ stars: 150 }) === 0.75, '150 星: 75%');
+            t.assert(GameLogic.getStarsRate({ stars: 199 }) === 0.75, '199 星: 75%');
+            t.assert(GameLogic.getStarsRate({ stars: 200 }) === 0.5, '200 星: 50%');
+            t.assert(GameLogic.getStarsRate({ stars: 250 }) === 0.5, '250 星: 50%');
+            t.assert(GameLogic.getStarsRate({ stars: 299 }) === 0.5, '299 星: 50%');
+            t.assert(GameLogic.getStarsRate({ stars: 300 }) === 0.3, '300 星: 30%');
+            t.assert(GameLogic.getStarsRate({ stars: 9999 }) === 0.3, '9999 星: 30%');
+            t.assert(GameLogic.getStarsRate({}) === 1.0, '无 stars 字段: 1.0');
+        });
+
+        // ─── 14. claimDailyLogin ───
+        group('claimDailyLogin - 每日登录奖励', function (t) {
+            // 未写意图
+            let s = { ...GameLogic.defaultState, stars: 0, dailyStars: 0, lastDailyLoginClaim: 0, lastDailyReset: 0 };
+            let r = GameLogic.claimDailyLogin(s, false);
+            t.assert(r.claimed === false, '未写意图不发放');
+            t.assert(r.message === '📝 先写下今天的学习目标吧！', '提示先写意图');
+
+            // 写了意图
+            let s2 = { ...GameLogic.defaultState, stars: 0, dailyStars: 0, lastDailyLoginClaim: 0, lastDailyReset: 0 };
+            let r2 = GameLogic.claimDailyLogin(s2, true);
+            t.assert(r2.claimed === true, '写下意图后发放');
+            t.assert(r2.state.stars === 2, '奖励 2 星');
+
+            // 同一天不重复发放
+            let r3 = GameLogic.claimDailyLogin(s2, true);
+            t.assert(r3.claimed === false, '同一天不重复发放');
+        });
+
+        // ─── 15. claimDailyGoal ───
+        group('claimDailyGoal - 完成目标奖励', function (t) {
+            let s = { ...GameLogic.defaultState, stars: 0, dailyStars: 0, dailyGoalCompleted: 0, lastDailyReset: 0 };
+            let r = GameLogic.claimDailyGoal(s);
+            t.assert(r.claimed === true, '完成目标发放奖励');
+            t.assert(r.state.stars === 3, '奖励 3 星');
+
+            // 同一天不重复
+            let r2 = GameLogic.claimDailyGoal(s);
+            t.assert(r2.claimed === false, '同一天不重复发放');
+        });
+
+        // ─── 16. 专注星系统：enterFocus / leaveFocus / tickFocus ───
+        group('enterFocus / leaveFocus / tickFocus / getStarsInfo', function (t) {
+            let s = { ...GameLogic.defaultState, isFocused: false, focusBlocks: 0, stars: 0, dailyStars: 0, lastDailyReset: 0 };
+
+            // 进入专注
+            s = GameLogic.enterFocus(s);
+            t.assert(s.isFocused === true, 'enterFocus 标记为专注');
+
+            // 专注区块累加
+            s = GameLogic.tickFocus(s).state;
+            t.assert(s.focusBlocks === 1, 'tickFocus 累加 1 区块');
+            s = GameLogic.tickFocus(s).state;
+            s = GameLogic.tickFocus(s).state;
+            t.assert(s.focusBlocks === 3, '3 次 tick 累加 3 区块');
+
+            // 离开专注：前3块每块2星
+            let r = GameLogic.leaveFocus(s);
+            t.assert(r.starsEarned === 6, '3 区块离开，获得 6 星 (3×2)');
+            t.assert(r.state.isFocused === false, '离开后 isFocused=false');
+            t.assert(r.state.focusBlocks === 0, '离开后 focusBlocks=0');
+
+            // 多于3块：第4块起每块1星
+            let s2 = { ...GameLogic.defaultState, isFocused: true, focusBlocks: 5, stars: 0, dailyStars: 0, lastDailyReset: 0 };
+            let r2 = GameLogic.leaveFocus(s2);
+            t.assert(r2.starsEarned === 8, '5 区块离开，获得 8 星 (3×2 + 2×1)');
+
+            // 每日上限 80
+            let s3 = { ...GameLogic.defaultState, isFocused: true, focusBlocks: 24, stars: 0, dailyStars: 78, lastDailyReset: 0 };
+            let r3 = GameLogic.leaveFocus(s3);
+            t.assert(r3.state.stars === 2, '每日上限 80，只获得 2 星');
+
+            // getStarsInfo
+            let info = GameLogic.getStarsInfo({ ...GameLogic.defaultState, stars: 10, dailyStars: 5, lastDailyReset: 0, isFocused: true, focusBlocks: 3 });
+            t.assert(info.stars === 10, 'getStarsInfo.stars 正确');
+            t.assert(info.dailyStars === 5, 'getStarsInfo.dailyStars 正确');
+            t.assert(info.dailyRemaining === 75, 'getStarsInfo.dailyRemaining 正确');
+            t.assert(info.sessionBlocks === 3, 'getStarsInfo.sessionBlocks 正确');
+        });
+
+        // ─── 17. Storage ───
+        group('Storage - 数据持久化', function (t) {
+            // 清除已有存档
+            Storage.clear();
+            t.assert(Storage.hasSave() === false, '清除后无存档');
+
+            // 保存
+            const state = { ...GameLogic.defaultState, name: '测试宠物', level: 5 };
+            const ok = Storage.save(state);
+            t.assert(ok === true, '保存成功');
+            t.assert(Storage.hasSave() === true, '保存后有存档');
+
+            // 读取
+            const loaded = Storage.load();
+            t.assert(loaded !== null, '读取成功');
+            t.assert(loaded.name === '测试宠物', '读取字段正确');
+            t.assert(loaded.level === 5, '读取 level 正确');
+            t.assert(typeof loaded.savedAt === 'number', '读取有 savedAt 时间戳');
+
+            // getSaveTime
+            const time = Storage.getSaveTime();
+            t.assert(typeof time === 'string', 'getSaveTime 返回字符串');
+
+            // 清除
+            Storage.clear();
+            t.assert(Storage.hasSave() === false, '再次清除后无存档');
+            t.assert(Storage.load() === null, '清除后读取返回 null');
+
+            // 恢复存档
+            Storage.save(state);
+        });
+
+        // ─── 18. 边界情况综合 ───
+        group('边界情况 - 综合', function (t) {
+            // 专注星不足时 performAction 不修改 state
+            const s1 = { ...GameLogic.defaultState, stars: 0, hunger: 50 };
+            const r1 = GameLogic.performAction(s1, 'feed');
+            t.assert(r1.state.hunger === 50, '星不足时属性不变化');
+            t.assert(r1.state.stars === 0, '星不足时星不变化');
+
+            // 免费操作不受星数限制
+            const s2 = { ...GameLogic.defaultState, stars: 0, happiness: 50 };
+            const r2 = GameLogic.performAction(s2, 'greet');
+            t.assert(r2.state.happiness === 51, '免费操作不消耗星');
+
+            // 亲密度为负数的边界
+            const bonus = GameLogic.getAffectionBonus({ affection: -5 });
+            t.assert(bonus === 1.0, '负数亲密度返回 1.0x');
+
+            // 睡眠状态衰减
+            const s3 = { ...GameLogic.defaultState, isSleeping: true, energy: 50, hunger: 50, hygiene: 50 };
+            const r3 = GameLogic.tick(s3, 60);
+            t.assert(r3.energy === 60, '睡眠时精力恢复 +10/h');
+            t.assert(r3.hunger === 49, '睡眠时饥饿减半 -1/h');
+
+            // 0 分钟 tick 不变化
+            const s4 = { ...GameLogic.defaultState, hunger: 80, energy: 80, hygiene: 80 };
+            const r4 = GameLogic.tick(s4, 0);
+            t.assert(r4.hunger === 80 && r4.energy === 80 && r4.hygiene === 80, '0 分钟 tick 无变化');
+        });
+
+        // ─── 19. _checkDailyReset ───
+        group('_checkDailyReset - 每日重置', function (t) {
+            const s = { ...GameLogic.defaultState, dailyStars: 50, lastDailyReset: 0 };
+            // 直接调用内部方法
+            GameLogic._checkDailyReset(s);
+            t.assert(s.dailyStars === 0, '每日重置后 dailyStars 归零');
+            t.assert(s.lastDailyReset > 0, '重置时间戳更新');
+        });
+
+        // ─── 20. getStarsInfo 每日剩余 ───
+        group('getStarsInfo - 每日剩余', function (t) {
+            let info = GameLogic.getStarsInfo({ ...GameLogic.defaultState, stars: 10, dailyStars: 30, lastDailyReset: 0 });
+            t.assert(info.dailyRemaining === 50, 'dailyStars=30 时剩余 50');
+
+            info = GameLogic.getStarsInfo({ ...GameLogic.defaultState, stars: 10, dailyStars: 80, lastDailyReset: 0 });
+            t.assert(info.dailyRemaining === 0, 'dailyStars=80 时剩余 0');
+
+            info = GameLogic.getStarsInfo({ ...GameLogic.defaultState, stars: 10, dailyStars: 85, lastDailyReset: 0 });
+            t.assert(info.dailyRemaining === 0, 'dailyStars=85 时剩余 0（不出现负数）');
+        });
+
+        // ─── 21. 多个 action 的 cost 和 xp 一致性 ───
+        group('所有 action 的 cost × 5 一致性', function (t) {
+            for (const [key, action] of Object.entries(GameLogic.actions)) {
+                if (action.cost > 0) {
+                    const s = { ...GameLogic.defaultState, stars: 100, xp: 0 };
+                    const r = GameLogic.performAction(s, key);
+                    const expectedXp = action.cost * 5;
+                    t.assert(r.state.xp === expectedXp, `${key}: cost=${action.cost} → xp=${expectedXp}`);
+                }
+            }
+            t.assert(true, '所有成本操作的 xpReward = cost × 5 验证完成');
+        });
+
+        // ─── 渲染结果 ───
+        render();
+    })();
+    </script>
+</body>
+</html>

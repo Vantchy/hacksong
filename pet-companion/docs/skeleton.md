@@ -268,17 +268,38 @@ const GameLogic = {    // [C] 全局对象名，属 [B+C] 接口区，B 和 C �
     // [B+C] 返回值 string|null 不可改
     getWarning: function (state) { ... },
 
-    // =================================================================
-    //  专注星系统（[C] 新增，[B+C] 接口区）
+    // ===== [C] 画像数据采集方法（B 在专注结算时调用） =====
+    addFocusTime: function (state, minutes) { ... },   // 累加专注时长
+    recordMood: function (state, mood) { ... },         // 记录情绪（happy/neutral/sad）
+    addInterruption: function (state) { ... },          // 记录中断次数
+    recordSession: function (state, data) { ... },       // 记录本次完整学习记录（最多100条），自动重置 focusTime/interruptions
+    getAnalysis: function (state) { ... },                  // 基于历史记录生成画像分析数据
+    // ===== [C] 亲密度里程碑加成（已嵌入 performAction） =====
+    //  内部方法，B 无需调用
+    getAffectionBonus: function (state) { ... },
+
+    // ===== [C] 亲密度行为阶段（[B+C] 接口区，A 据此设计视觉形态） =====
+    //  B 调用此方法获取阶段标识，切换宠物 CSS class
+    //  A 为每个阶段（newbie/familiar/intimate/bestie/forever）设计对应的视觉形态和动画
+    getAffectionStage: function (state) { ... },
+    startCountdown: function (state, seconds) { ... },   // 启动倒计时
+    tickCountdown: function (state) { ... },              // 每秒递减，返回 { state, finished }
+
+    // ===== 专注星系统（[C] 新增，[B+C] 接口区） =====
     //  规则文档：docs/animallogicC.md
+    // =================================================================
+    // ===== [C] 专注星软上限 =====
+    getStarsRate: function (state) { ... },              // 返回当前获取倍率
     // =================================================================
 
     // ===== [C] 内部：每日数据重置 =====
     _checkDailyReset: function (state) { ... },  // [C] 内部方法，B 不直接调用
 
-    // ===== [C] 每日首次登录奖励（B 在 init 中调用） =====
-    // [B+C] 返回值 { state, message, claimed } 不可改
-    claimDailyLogin: function (state) { ... },
+    // ===== [C] 每日首次登录奖励（B 绑定"写下意图"按钮） =====
+    // [B+C] 新增 hasWrittenIntention 参数，B 必须传 true 才发放
+    claimDailyLogin: function (state, hasWrittenIntention = false) { ... },
+    // ===== [C] 完成自定学习目标奖励（B 绑定"标记完成"按钮） =====
+    claimDailyGoal: function (state) { ... },
 
     // ===== [C] 进入专注状态（B 在活动检测中调用） =====
     // [B+C] 返回值 state 不可改
@@ -460,11 +481,22 @@ const Storage = {    // [C] 全局对象名，属 [B+C] 接口区
 | | `save(state)` → `boolean` | 改参数 → B 调用出错 |
 | | `load()` → `Object \| null` | 改返回值 → B 逻辑出错 |
 | | `clear()` → `boolean` | — |
-| **方法签名（专注星系统新增）** | `claimDailyLogin(state)` → `{ state, message, claimed }` | B 依赖 claimed 字段判断是否到账 |
+| **方法签名（专注星系统新增）** | `claimDailyLogin(state, hasWrittenIntention)` → `{ state, message, claimed }` | **B 必须传 `hasWrittenIntention=true` 才发放奖励**，子页面加载时传 false 不会发放 |
 | | `enterFocus(state)` → `Object` | 改返回值 → B 专注跟踪失效 |
 | | `leaveFocus(state)` → `{ state, message, starsEarned }` | B 依赖 starsEarned 展示奖励 |
 | | `tickFocus(state)` → `{ state, message }` | B 在 doTick 中同步调用 |
 | | `getStarsInfo(state)` → `{ stars, dailyStars, dailyRemaining, sessionBlocks }` | B 可选用于 UI 渲染 |
+| **方法签名（画像数据采集新增）** | `addFocusTime(state, minutes)` → `Object` | B 用于专注结算时累加时长 |
+| | `recordMood(state, mood)` → `Object` | B 用于专注结束时记录情绪 |
+| | `addInterruption(state)` → `Object` | B 用于检测到中断时记录 |
+| **方法签名（画像数据采集新增）** | `recordSession(state, data)` → `Object` | B 用于专注结束时写入完整记录，自动重置 focusTime/interruptions |
+| | `getAnalysis(state)` → `Object` | B 可选用于展示画像面板 |
+| **方法签名（倒计时新增）** | `startCountdown(state, seconds)` → `Object` | B 在"深呼吸"按钮点击时调用 |
+| | `tickCountdown(state)` → `{ state, finished }` | B 在 setInterval 中每秒调用，finished 为 true 时停止 |
+| **方法签名（软上限新增）** | `getStarsRate(state)` → `number` | 内部使用，B 无需调用；软上限规则已嵌入 leaveFocus |
+| **方法签名（目标奖励新增）** | `claimDailyGoal(state)` → `{ state, message, claimed }` | B 在用户标记"目标已完成"时调用，每天限 1 次 |
+| **方法签名（亲密度里程碑新增）** | `getAffectionBonus(state)` → `number` | 内部使用，已嵌入 performAction，B 无需调用 |
+| | `getAffectionStage(state)` → `'newbie'\|'familiar'\|'intimate'\|'bestie'\|'forever'` | B 调用并根据返回值切换宠物 CSS class；A 为每个阶段设计视觉形态 |
 | **data-action 枚举** | `pet_free`, `greet`, `feed`, `clean`, `highfive`, `cheer`, `pet_extra`, `sleep`（`play`、`heal` 已移除） | C 删了某个 key → B 操作无反应 |
 
 ### 7.3 [A+B+C] 契约区（三方必须一致）

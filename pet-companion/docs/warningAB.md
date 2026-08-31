@@ -61,13 +61,16 @@ CSS 中 `.pet-sick` 动画 class 已不再有意义（health 已移除），A �
 .action-btn-star { /* 点数：金色/星标 */ }
 ```
 
-#### 6. 亲密度展示（可选）
+#### 6. 亲密度展示 + 宠物形态切换（可选）
 
-C 已实现 `affection` 亲密度字段，通过 `pet_free` 和 `pet_extra` 增加。A 可以在 UI 中添加亲密度展示（如心形图标或进度条），数据由 B 渲染：
+C 已实现 `affection` 亲密度字段，通过 `pet_free` 和 `pet_extra` 增加。A 可以在 UI 中添加亲密度展示（如心形图标或进度条），数据由 B 渲染。
 
-| 展示内容 | 建议 HTML id |
-|----------|-------------|
+**C 新增 `getAffectionStage(state)` 方法**，返回当前亲密度所处行为阶段（`'newbie'` / `'familiar'` / `'intimate'` / `'bestie'` / `'forever'`），B 调用后根据返回值切换宠物 CSS class，A 为每个阶段设计对应的视觉形态和动画。
+
+| 展示内容 | 建议 HTML id / CSS class |
+|----------|--------------------------|
 | 亲密度数值 | `affection-value` |
+| 形态阶段 CSS class | `.pet-newbie`, `.pet-familiar`, `.pet-intimate`, `.pet-bestie`, `.pet-forever`（A 定义，B 切换） |
 
 ---
 
@@ -99,15 +102,41 @@ B 需要实现完整的专注状态检测逻辑，这是 B 的核心新增功能
 
 `performAction` 返回的 `message` 现在包含 `⭐ 需要 X 专注星，当前不足`。B 需要将这条消息渲染到 UI（如 `pet-message` 元素）。
 
-#### 4. 加载时调用每日登录奖励
+#### 4. 调用每日登录奖励（绑定"写下意图"按钮）
 
-B 在页面加载时调用 `GameLogic.claimDailyLogin(state)`，获取每日登录奖励的 2 专注星，并展示消息。
+B **不再在页面加载时自动调用** `claimDailyLogin`，而是绑定到"写下学习目标"按钮/输入框的提交事件：
 
-#### 5. 专注结算 UI 反馈
+```js
+// ❌ 旧：页面加载时自动调用
+// GameLogic.claimDailyLogin(state);
+
+// ✅ 新：用户写下意图后调用
+const result = GameLogic.claimDailyLogin(state, true);
+```
+
+- 子页面加载/初始化时**不传参或传 false**，不会发放奖励，返回提示"先写下目标"
+- 只有当用户写下了学习意图（B 检测到输入框有内容并提交）时，才传 `true`
+- 今日已领取过则 `claimed: false`，不会重复发放
+
+#### 5. 调用完成目标奖励（绑定"标记完成"按钮）
+
+B 在用户点击"完成今日目标"按钮时调用 `GameLogic.claimDailyGoal(state)`：
+
+```js
+const result = GameLogic.claimDailyGoal(state);
+if (result.claimed) {
+  showMessage(result.message);  // "🎯 完成今日目标，获得 3 专注星！"
+}
+```
+
+- 每天限 1 次，再次调用返回 `claimed: false`
+- 受每日 80 星上限保护，若当日已达上限则奖励不足 3 星
+
+#### 6. 专注结算 UI 反馈
 
 `GameLogic.leaveFocus(state)` 返回 `{ state, message, starsEarned }`。B 需要将 `starsEarned` 展示给用户（如弹窗或消息提示）。
 
-#### 6. 渲染专注星信息到 UI
+#### 7. 渲染专注星信息到 UI
 
 B 定期调用 `GameLogic.getStarsInfo(state)`，将返回的数据填充到 A 定义的 HTML 元素中：
 
