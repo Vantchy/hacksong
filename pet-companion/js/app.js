@@ -5,25 +5,30 @@
  * A 不涉及此文件，但此文件引用了 A 定义的 HTML id
  * =====================================
  *
- * 本文件在契约版 app.js 基础上扩展了"茸学伴"4大模块：
- *   模块1：共场陪伴 + 走神检测（Page Visibility API + 鼠标键盘空闲检测）
+ * 本文件实现 warningAB.md 对 B 的全部要求：
+ *   1. 专注状态检测（90秒阈值，120秒非专注结算）
+ *   2. 专注星系统调用（enterFocus/leaveFocus/tickFocus/getStarsInfo/claimDailyLogin）
+ *   3. 每日免费互动次数限制（pet_free / greet 各1次/天，B 控制）
+ *   4. 专注星信息渲染到 UI（star-count / daily-star-* / focus-block-count）
+ *   5. 移除 .pet-sick 使用（health 已移除）
+ *
+ * 同时保留茸学伴4大模块（通过动态 DOM 实现，新 id 不与 A 冲突）：
+ *   模块1：共场陪伴 + 走神检测（与专注状态检测融合）
  *   模块2：状态镜像对话（规则引擎 + 极小启动动作）
  *   模块3：状态记录（学习结束 emoji 记录 + 自动采集数据）
  *   模块4：长期陪伴演化（画像 + 个性化行为触发）
  *
  * 契约遵守：
  *   - 仅引用 A 定义的 HTML id（level/xp/pet-sprite/hunger-fill 等）
- *   - 4大模块的 DOM 通过 JS 动态创建，使用全新 id（companion-*/mirror-*/record-*/profile-*），
- *     不与 A 现有 id 冲突
- *   - 所有数据操作通过 C 的 GameLogic / Storage 全局对象，绝不直接调用 localStorage
- *   - 状态字段使用契约定义的 focusTime / mood / interruptions
+ *   - 4大模块的 DOM 通过 JS 动态创建，使用全新 id（companion-*/mirror-*/record-*/profile-*）
+ *   - 所有数据操作通过 C 的 GameLogic / Storage 全局对象，绝不直接操作 localStorage
+ *   - 专注星相关字段（stars/dailyStars/focusBlocks 等）由 C 维护，B 只读写不直接计算
  */
 
 (function () {
     'use strict';
 
     // ===== [B] DOM 引用（引用 A 定义的 id） =====
-    // [A+B] 以下 id 与 HTML 绑定，A 改名需通知 B
     const $ = (id) => document.getElementById(id);
 
     const el = {
@@ -46,35 +51,46 @@
         loadBtn:    $('load-btn'),
         resetBtn:   $('reset-btn'),
 
-        // [B] A 的容器，用于挂载4大模块的动态 DOM
-        app:    $('app'),
-        petArea: $('pet-area')
+        // [B] A 的容器，用于挂载动态 DOM
+        app: $('app')
     };
 
     // ===== [B] 状态变量 =====
-    let gameState = null;      // [B] 状态对象，字段结构由 [A+B+C] 契约定义
-    let tickInterval = null;   // [B] 衰减定时器句柄
-    const TICK_INTERVAL_MS = 5 * 60 * 1000; // [B] 5分钟衰减一次
+    let gameState = null;
+    let tickInterval = null;
+    const TICK_INTERVAL_MS = 5 * 60 * 1000; // 5分钟衰减一次（C 的 tick）
+
+    // ===== [B] warningAB.md 要求：专注状态检测变量 =====
+    // 90秒无活动 → 标记为非专注；连续非专注 ≥ 120秒 → 调用 leaveFocus 结算
+    const FOCUS_INACTIVE_THRESHOLD = 90;   // 90秒无操作 → 非专注
+    const FOCUS_LEAVE_THRESHOLD = 120;     // 连续非专注120秒 → 结算
+    let lastActivity = Date.now();          // 最近一次鼠标/键盘活动
+    let nonFocusSeconds = 0;               // 连续非专注秒数
+    let focusCheckTimer = null;             // 专注检测1秒心跳
+    let wasFocused = false;                 // 上一秒是否处于专注态
+
+    // ===== [B] warningAB.md 要求：每日免费互动次数（pet_free / greet 各1次/天）=====
+    let freeActionUsage = {
+        pet_free: null,   // 上次使用日期字符串 'YYYY-MM-DD'
+        greet: null
+    };
 
     // ===== [B] 模块1-4 内部运行变量 =====
-    let companionActive = false;       // 共学模式是否开启
-    let focusSeconds = 0;              // 本次专注累计秒数（focusTime 字段为分钟）
-    let lastActivity = Date.now();     // 最近一次鼠标/键盘活动时间
+    let focusSeconds = 0;              // 本次共学累计秒数（用于模块1时长显示）
     let wasIdle = false;               // 当前是否处于走神态
-    let companionTimer = null;         // 共学模式1秒心跳
-    let bubbleTimer = null;            // 气泡显示计时器
-    let breatheTimer = null;           // 深呼吸倒计时
-    let breatheRemaining = 0;          // 深呼吸剩余秒
-    let lastFidgetWarn = 0;            // 上次翻身提醒时间（防刷屏）
+    let breatheTimer = null;
+    let breatheRemaining = 0;
+    let lastFidgetWarn = 0;
 
-    // 走神判定阈值（秒）·演示用20s，正式建议120-300s
+    // 走神判定阈值（秒）·演示用20s，正式建议90s（与 FOCUS_INACTIVE_THRESHOLD 对齐）
     const IDLE_THRESHOLD = 20;
     // 专注达40分钟，宠物开始翻身（暗示该休息）
     const FOCUS_WARN_AT = 40 * 60;
     // 深呼吸启动动作时长
     const BREATHE_SECONDS = 60;
 
-    // ===== [B] 长期画像（模块3/4 数据，附加到 gameState 通过 Storage 持久化）=====
+    // ===== [B] 长期画像（模块3/4 数据，通过 gameState._bProfile 附加，走 Storage 持久化）=====
+    // ⚠ _bProfile 是 B 侧临时字段，非 samename.md 契约字段。待 C 实现 history/getAnalysis 后迁移。
     let profile = {
         sessions: [],        // 每次学习记录 {date, startHour, focusMin, interruptions, mood}
         focusUpperLimit: 0,  // 发现的专注上限（分钟）
@@ -86,7 +102,6 @@
      * ============================================================ */
     function render() {
         if (!gameState) return;
-
         const s = gameState;
 
         // 基础信息
@@ -98,7 +113,7 @@
         el.age.textContent = s.age;
         el.petName.textContent = '🐾 ' + s.name;
 
-        // 属性条
+        // 属性条（health 已移除，只渲染4项）
         el.hunger.fill.style.width    = s.hunger + '%';
         el.hunger.value.textContent   = s.hunger;
         el.happiness.fill.style.width = s.happiness + '%';
@@ -111,40 +126,33 @@
         // 宠物表情 & 动画
         updatePetAppearance(s);
 
-        // 警告消息（共学模式时不覆盖走神/专注状态消息）
-        if (!companionActive) {
+        // 警告消息（专注状态时不覆盖）
+        if (!s.isFocused) {
             const warning = GameLogic.getWarning(s);
             if (warning) {
                 el.message.textContent = warning;
             }
         }
+
+        // 渲染专注星信息（warningAB.md 要求）
+        renderStarsInfo();
     }
 
-    // ===== [B] 更新宠物外观 =====
+    // ===== [B] 更新宠物外观（移除 .pet-sick，health 已废弃）=====
     function updatePetAppearance(s) {
         const sprite = el.petSprite;
-
-        // 移除所有动画 class（A 定义的契约类名）
         sprite.className = '';
 
-        if (companionActive) {
-            // 共学模式：专注时打盹，走神时显示病恹恹抖动
-            if (wasIdle) {
-                sprite.textContent = '😮';
-                sprite.classList.add('pet-sick');
-            } else {
-                sprite.textContent = '😴';
-                sprite.classList.add('pet-sleeping');
-            }
+        if (s.isFocused) {
+            // 专注中：打盹（共场陪伴·用户专注时宠物趴着）
+            sprite.textContent = '😴';
+            sprite.classList.add('pet-sleeping');
             return;
         }
 
         if (s.isSleeping) {
             sprite.textContent = '💤';
             sprite.classList.add('pet-sleeping');
-        } else if (s.health < 30) {
-            sprite.textContent = '😷';
-            sprite.classList.add('pet-sick');
         } else if (s.happiness > 70) {
             sprite.textContent = '😊';
             sprite.classList.add('pet-normal');
@@ -163,13 +171,11 @@
         sprite.className = '';
         sprite.textContent = '🥳';
         sprite.classList.add('pet-happy');
-        setTimeout(() => {
-            if (gameState) updatePetAppearance(gameState);
-        }, 600);
+        setTimeout(() => { if (gameState) updatePetAppearance(gameState); }, 600);
     }
 
-    // ===== [B] 显示消息（A 定义的 #pet-message 气泡）=====
-    function showMessage(text, isImportant) {
+    // ===== [B] 显示消息 =====
+    function showMessage(text) {
         el.message.textContent = text;
         el.message.style.opacity = 0;
         el.message.style.transform = 'translateY(5px)';
@@ -181,36 +187,55 @@
 
     /* ============================================================
      * [B+C] 操作处理（调用 C 的 GameLogic 接口）
+     * 含：专注星不足处理、每日免费互动次数限制
      * ============================================================ */
     function handleAction(actionKey) {
         if (!gameState) return;
-        // 共学模式中禁用普通操作按钮
-        if (companionActive) {
-            showMessage('共学模式中，先结束本次学习吧');
+
+        // 每日免费互动次数限制（warningAB.md 第7点，B 控制）
+        if (actionKey === 'pet_free' || actionKey === 'greet') {
+            const today = new Date().toDateString();
+            if (freeActionUsage[actionKey] === today) {
+                showMessage(`今天的${actionKey === 'pet_free' ? '抚摸' : '打招呼'}免费额度已用完，明天再来吧`);
+                return;
+            }
+        }
+
+        const result = GameLogic.performAction(gameState, actionKey);
+
+        // 专注星不足（warningAB.md 第3点）：result.message 含"专注星，当前不足"
+        if (result.message && result.message.indexOf('专注星') >= 0 && result.message.indexOf('不足') >= 0) {
+            showMessage(result.message);
             return;
         }
-        const result = GameLogic.performAction(gameState, actionKey);
+
         gameState = result.state;
+
+        // 免费互动记录使用日期
+        if (actionKey === 'pet_free' || actionKey === 'greet') {
+            freeActionUsage[actionKey] = new Date().toDateString();
+        }
+
         render();
         showMessage(result.message);
         triggerHappyAnimation();
-        // 自动保存（通过 C 的 Storage 接口）
         saveGameState();
     }
 
-    // ===== [B+C] 定时衰减（调用 C 的 GameLogic 接口）=====
+    // ===== [B+C] 定时衰减（调用 C 的 GameLogic.tick + tickFocus）=====
     function doTick() {
         if (!gameState) return;
-        const previousHealth = gameState.health;
         gameState = GameLogic.tick(gameState, 5);
-        // 如果重置了（健康归零）
-        if (!gameState.level) {
-            gameState = { ...GameLogic.defaultState, createdAt: Date.now() };
-            showMessage('💫 宠物涅槃重生！');
-        } else if (gameState.health < previousHealth) {
-            const warning = GameLogic.getWarning(gameState);
-            if (warning && !companionActive) showMessage(warning);
+
+        // 专注区块计时（warningAB.md 第1点）：若专注中，每5分钟累加1个区块
+        if (gameState.isFocused) {
+            const focusResult = GameLogic.tickFocus(gameState);
+            gameState = focusResult.state;
+            if (focusResult.message) {
+                showMessage(focusResult.message);
+            }
         }
+
         render();
         saveGameState();
     }
@@ -226,8 +251,7 @@
         const data = Storage.load();
         if (data) {
             gameState = data;
-            // 恢复附加的 profile 数据
-            if (data.profile) profile = data.profile;
+            if (data._bProfile) profile = data._bProfile;
             render();
             renderProfile();
             showMessage('📂 读档成功！');
@@ -241,15 +265,18 @@
         Storage.clear();
         gameState = { ...GameLogic.defaultState, createdAt: Date.now() };
         profile = { sessions: [], focusUpperLimit: 0, weekdayStats: {} };
+        freeActionUsage = { pet_free: null, greet: null };
         render();
         renderProfile();
         showMessage('🗑️ 已重置');
     }
 
-    // ===== [B] 保存状态（附加 profile，通过 C 的 Storage 接口）=====
+    // ===== [B] 保存状态（附加 _bProfile，通过 C 的 Storage 接口）=====
     function saveGameState() {
-        // 将 profile 附加到 gameState 一起持久化（C 的 spread 操作会保留额外字段）
-        gameState.profile = profile;
+        // ⚠ _bProfile 是 B 侧临时扩展字段（非 samename.md 契约字段），下划线+B前缀避免与 C 的
+        //   计划字段 history 冲突。待 C 实现 GameLogic.getAnalysis()/history 后，B 应迁移到调用
+        //   C 的接口，并移除本字段。（参考 docs/warningC.md 优先级3）
+        gameState._bProfile = profile;
         return Storage.save(gameState);
     }
 
@@ -260,10 +287,8 @@
 
         const elapsed = Date.now() - saved.savedAt;
         const minutesElapsed = Math.floor(elapsed / 60000);
-
         if (minutesElapsed < 1) return false;
 
-        // 最多计算 24 小时的离线时间
         const cappedMinutes = Math.min(minutesElapsed, 24 * 60);
         const ticks = Math.floor(cappedMinutes / 5);
 
@@ -271,13 +296,10 @@
         for (let i = 0; i < ticks; i++) {
             state = GameLogic.tick(state, 5);
         }
-
-        // 增加年龄（根据离线时间）
         state.age = saved.age + Math.floor(minutesElapsed / (24 * 60));
 
         gameState = state;
-        // 恢复 profile
-        if (saved.profile) profile = saved.profile;
+        if (saved._bProfile) profile = saved._bProfile;
         render();
 
         if (minutesElapsed >= 1) {
@@ -290,176 +312,205 @@
     }
 
     /* ============================================================
-     * 模块1：共场陪伴 + 走神检测（B 核心实现）
+     * warningAB.md 第1、2点：专注状态检测 + 专注星系统
      * 技术方案：Page Visibility API + 鼠标键盘空闲检测
+     *   - 90秒无活动 → 标记为非专注
+     *   - 连续非专注 ≥ 120秒 → 调用 GameLogic.leaveFocus 结算
      * ============================================================ */
 
-    // 动态创建共学面板 DOM（使用全新 id，不与 A 冲突）
+    // 启动专注检测心跳（每秒检查）
+    function startFocusDetection() {
+        if (focusCheckTimer) return;
+        focusCheckTimer = setInterval(focusTick, 1000);
+    }
+
+    // 专注检测每秒心跳
+    function focusTick() {
+        if (!gameState) return;
+
+        // 标签页不可见 → 直接非专注
+        if (document.hidden) {
+            handleNonFocus();
+            return;
+        }
+
+        const idleSec = (Date.now() - lastActivity) / 1000;
+        if (idleSec >= FOCUS_INACTIVE_THRESHOLD) {
+            // 90秒无操作 → 非专注
+            handleNonFocus();
+        } else {
+            // 可见 + 90秒内有操作 → 专注
+            handleFocus();
+        }
+    }
+
+    // 用户处于专注态
+    function handleFocus() {
+        nonFocusSeconds = 0;
+        if (!gameState.isFocused) {
+            // 进入专注态
+            gameState = GameLogic.enterFocus(gameState);
+            render();
+            // 模块1：更新状态显示
+            const fs = $('focus-state');
+            if (fs) {
+                fs.textContent = '专注中';
+                fs.style.color = '#2e7d32';
+            }
+            const fstat = $('focus-status');
+            if (fstat) {
+                fstat.textContent = '茸茸趴下陪你 · 你专注时它打盹';
+                fstat.style.color = '#2e7d32';
+            }
+        }
+    }
+
+    // 用户处于非专注态
+    function handleNonFocus() {
+        if (gameState.isFocused) {
+            nonFocusSeconds += 1;
+            // 模块1：走神检测 — 宠物抬头看你一眼
+            if (!wasIdle) {
+                wasIdle = true;
+                showMessage('（看了你一眼）还在吗？');
+                const fs = $('focus-state');
+                if (fs) {
+                    fs.textContent = '走神了';
+                    fs.style.color = '#f57c00';
+                }
+                const fstat = $('focus-status');
+                if (fstat) {
+                    fstat.textContent = '茸茸发现你走神了 · 不催你，回来就好';
+                    fstat.style.color = '#f57c00';
+                }
+            }
+            // 连续非专注 ≥ 120秒 → 结算
+            if (nonFocusSeconds >= FOCUS_LEAVE_THRESHOLD) {
+                leaveFocusAndRecord();
+            }
+        } else {
+            nonFocusSeconds += 1;
+        }
+    }
+
+    // 离开专注态，结算专注星（warningAB.md 第5点）
+    function leaveFocusAndRecord() {
+        const result = GameLogic.leaveFocus(gameState);
+        gameState = result.state;
+        wasIdle = false;
+        nonFocusSeconds = 0;
+
+        if (result.message) {
+            showMessage(result.message);
+        }
+        render();
+
+        // 模块3：状态记录 — 专注结束后弹出情绪记录
+        if (result.starsEarned > 0) {
+            recordSession();
+            showMoodRecord();
+        }
+    }
+
+    // 用户活动重置
+    function resetActivity() {
+        lastActivity = Date.now();
+        if (wasIdle && gameState && gameState.isFocused) {
+            wasIdle = false;
+            const fs = $('focus-state');
+            if (fs) {
+                fs.textContent = '专注中';
+                fs.style.color = '#2e7d32';
+            }
+            const fstat = $('focus-status');
+            if (fstat) {
+                fstat.textContent = '欢迎回来 · 茸茸继续趴着陪你';
+                fstat.style.color = '#2e7d32';
+            }
+            render();
+        }
+    }
+
+    // 标签页可见性 → 切走记为中断（模块1 + 模块3 interruptions 字段）
+    function onVisibilityChange() {
+        if (document.hidden && gameState && gameState.isFocused) {
+            gameState.interruptions += 1;
+            const ic = $('interrupt-count');
+            if (ic) ic.textContent = gameState.interruptions;
+            saveGameState();
+        }
+    }
+
+    /* ============================================================
+     * warningAB.md 第6点：专注星信息渲染到 UI
+     * ============================================================ */
+
+    // 专注星 UI
+    // 按 warningAB 第3.2节，star-count / daily-star-* / focus-block-count 这些 id 由 A 创建、B 渲染。
+    // 这里仅当 A 尚未创建时才兜底动态创建，避免与 A 将来创建的同名 id 重复（HTML id 必须唯一）。
+    function initStarsUI() {
+        if (document.getElementById('star-count')) {
+            // A 已在 HTML 中创建了专注星展示元素，B 仅负责渲染（renderStarsInfo 会填充数据）
+            return;
+        }
+        // A 尚未创建（如 A 还没改 HTML），B 兜底创建（容器 id stars-panel 为 B 专用，不与 A 冲突）
+        const panel = document.createElement('section');
+        panel.id = 'stars-panel';
+        panel.style.cssText = 'margin-bottom:16px;padding:14px;background:#fff8e1;border-radius:14px;display:flex;justify-content:space-around;text-align:center;font-size:0.85rem;color:#666;';
+        panel.innerHTML = `
+            <div>⭐<br><b id="star-count" style="color:#f57c00;font-size:1.3rem;">0</b><br>专注星</div>
+            <div>今日<br><b id="daily-star-count" style="color:#333;font-size:1.1rem;">0</b>/<span id="daily-star-remaining">80</span><br>已获/剩余</div>
+            <div>专注区块<br><b id="focus-block-count" style="color:#2e7d32;font-size:1.1rem;">0</b>/24<br>当前/上限</div>
+        `;
+        el.app.insertBefore(panel, el.app.querySelector('#actions'));
+    }
+
+    // 渲染专注星信息（调用 C 的 getStarsInfo）
+    function renderStarsInfo() {
+        const info = GameLogic.getStarsInfo(gameState);
+        const sc = $('star-count'), dsc = $('daily-star-count'),
+              dsr = $('daily-star-remaining'), fbc = $('focus-block-count');
+        if (sc) sc.textContent = info.stars;
+        if (dsc) dsc.textContent = info.dailyStars;
+        if (dsr) dsr.textContent = info.dailyRemaining;
+        if (fbc) fbc.textContent = info.sessionBlocks;
+    }
+
+    /* ============================================================
+     * warningAB.md 第4点：每日登录奖励
+     * ============================================================ */
+    function claimDailyLogin() {
+        const result = GameLogic.claimDailyLogin(gameState);
+        gameState = result.state;
+        if (result.claimed && result.message) {
+            showMessage(result.message);
+        }
+    }
+
+    /* ============================================================
+     * 模块1：共场陪伴面板（与专注状态检测融合）
+     * ============================================================ */
     function initCompanionUI() {
         const panel = document.createElement('section');
         panel.id = 'companion-panel';
         panel.style.cssText = 'margin-bottom:16px;padding:16px;background:#f3f8e9;border-radius:14px;';
         panel.innerHTML = `
             <div style="text-align:center;">
-                <div id="focus-time" style="font-size:2rem;font-weight:700;color:#2e7d32;font-variant-numeric:tabular-nums;">00:00</div>
-                <div style="display:flex;justify-content:space-around;margin:8px 0;font-size:0.85rem;color:#666;">
+                <div style="font-size:0.85rem;color:#666;margin-bottom:8px;">专注状态由系统自动检测 · 90秒无操作视为走神</div>
+                <div style="display:flex;justify-content:space-around;font-size:0.85rem;color:#666;">
                     <span>中断 <b id="interrupt-count" style="color:#333;font-size:1rem;">0</b> 次</span>
                     <span>状态 <b id="focus-state" style="color:#333;font-size:1rem;">空闲</b></span>
                 </div>
-                <div id="focus-status" style="font-size:0.85rem;color:#666;min-height:20px;margin-bottom:10px;">点开启共学，茸茸就趴在屏幕边陪你</div>
-                <div style="display:flex;gap:10px;justify-content:center;">
-                    <button class="action-btn" id="btn-companion" style="background:#66bb6a;color:#fff;">开启共学模式</button>
-                    <button class="action-btn" id="btn-end-companion" style="opacity:0.5;" disabled>结束本次</button>
-                </div>
+                <div id="focus-status" style="font-size:0.85rem;color:#666;min-height:20px;margin-top:8px;">开始学习吧，茸茸会自动陪你</div>
             </div>
         `;
-        // 插入到属性面板之后
-        el.app.insertBefore(panel, el.app.querySelector('#actions'));
-
-        // 绑定事件
-        $('btn-companion').addEventListener('click', startCompanion);
-        $('btn-end-companion').addEventListener('click', endCompanion);
-    }
-
-    // 开启共学模式
-    function startCompanion() {
-        if (companionActive) return;
-        companionActive = true;
-        focusSeconds = 0;
-        gameState.interruptions = 0;
-        wasIdle = false;
-        lastActivity = Date.now();
-
-        $('btn-companion').disabled = true;
-        $('btn-companion').style.opacity = '0.5';
-        $('btn-end-companion').disabled = false;
-        $('btn-end-companion').style.opacity = '1';
-
-        $('focus-status').textContent = '茸茸趴下了 · 你专注时它打盹，走神时它看你一眼';
-        $('focus-status').style.color = '#2e7d32';
-        $('focus-state').textContent = '专注中';
-        showMessage('开工啦，我趴这儿陪你');
-
-        // 启动1秒心跳：专注计时 + 走神检测
-        companionTimer = setInterval(companionTick, 1000);
-        render();
-    }
-
-    // 结束共学模式 → 触发模块3状态记录
-    function endCompanion() {
-        if (!companionActive) return;
-        companionActive = false;
-        clearInterval(companionTimer);
-        companionTimer = null;
-
-        // 宠物伸懒腰（用 happy 动画近似）
-        triggerHappyAnimation();
-        $('focus-status').textContent = '本次结束 · 茸茸伸了个懒腰';
-        $('focus-status').style.color = '#666';
-        $('focus-state').textContent = '空闲';
-
-        $('btn-companion').disabled = false;
-        $('btn-companion').style.opacity = '1';
-        $('btn-end-companion').disabled = true;
-        $('btn-end-companion').style.opacity = '0.5';
-
-        showMessage('辛苦啦，伸个懒腰～');
-
-        // 记录本次会话 + 弹出情绪记录（模块3）
-        recordSession();
-        showMoodRecord();
-        render();
-    }
-
-    // 共学模式1秒心跳：专注计时 + 走神检测 + 专注上限提醒
-    function companionTick() {
-        if (!companionActive) return;
-
-        // 1) 专注秒数累加，每满60秒写入 focusTime（契约字段，单位分钟）
-        focusSeconds += 1;
-        if (focusSeconds % 60 === 0) {
-            gameState.focusTime = Math.floor(focusSeconds / 60);
-            saveGameState();
-        }
-
-        // 2) 更新专注时长显示
-        const m = Math.floor(focusSeconds / 60);
-        const s = focusSeconds % 60;
-        $('focus-time').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-        $('interrupt-count').textContent = gameState.interruptions;
-
-        // 3) 走神检测
-        checkIdle();
-
-        // 4) 专注上限提醒（模块4演化雏形）
-        checkFocusLimit();
-    }
-
-    // 走神检测：鼠标/键盘活动重置
-    function resetActivity() {
-        lastActivity = Date.now();
-        if (wasIdle && companionActive) {
-            // 用户回来 → 宠物重新趴下打盹
-            wasIdle = false;
-            $('focus-state').textContent = '专注中';
-            $('focus-status').textContent = '欢迎回来 · 茸茸继续趴着陪你';
-            $('focus-status').style.color = '#2e7d32';
-            render();
-        }
-    }
-
-    // 走神判定
-    function checkIdle() {
-        if (!companionActive) return;
-        const idleSec = (Date.now() - lastActivity) / 1000;
-        if (idleSec >= IDLE_THRESHOLD && !wasIdle) {
-            // 走神 → 宠物抬头看你一眼（用 sick 动画近似"看你一眼"），继续趴下
-            wasIdle = true;
-            showMessage('（看了你一眼）还在吗？');
-            $('focus-state').textContent = '走神了';
-            $('focus-status').textContent = '茸茸发现你走神了 · 不催你，回来就好';
-            $('focus-status').style.color = '#f57c00';
-            render();
-            // 2秒后恢复打盹姿态
-            setTimeout(() => {
-                if (companionActive && wasIdle) { wasIdle = false; render(); }
-            }, 2200);
-        }
-    }
-
-    // 标签页可见性 → 切走记为中断
-    function onVisibilityChange() {
-        if (document.hidden && companionActive) {
-            gameState.interruptions += 1;
-            $('focus-status').textContent = '检测到切换页面 · 记一次中断（不打扰你）';
-            $('focus-status').style.color = '#f57c00';
-            $('interrupt-count').textContent = gameState.interruptions;
-        } else if (!document.hidden && companionActive) {
-            lastActivity = Date.now();
-            wasIdle = false;
-            $('focus-status').textContent = '回来啦 · 茸茸一直在这儿';
-            $('focus-status').style.color = '#2e7d32';
-            $('focus-state').textContent = '专注中';
-            render();
-        }
-    }
-
-    // 专注超限提醒（模块4 演化雏形：发现专注上限约45分钟，第40分钟开始翻身）
-    function checkFocusLimit() {
-        if (!companionActive) return;
-        if (focusSeconds === FOCUS_WARN_AT && Date.now() - lastFidgetWarn > 60000) {
-            lastFidgetWarn = Date.now();
-            triggerHappyAnimation();
-            showMessage('坐不住了…要不歇1分钟？');
-        }
+        el.app.insertBefore(panel, el.app.querySelector('#stars-panel'));
     }
 
     /* ============================================================
-     * 模块2：状态镜像对话（B 核心实现 · 规则引擎）
+     * 模块2：状态镜像对话（规则引擎 + 极小启动动作）
      * 点击宠物 → 弹出输入框 → 规则匹配 → 宠物回应 + 极小启动动作
      * ============================================================ */
-
-    // 规则引擎
     const DIALOGUE_RULES = [
         { keys: ['烦', '不想学', '不想', '不想动', '累', '懒', '摆烂', '学不进'],
           resp: '那先不学，陪我看一分钟窗外吧', action: 'breathe' },
@@ -485,7 +536,6 @@
         return DEFAULT_RULE;
     }
 
-    // 动态创建镜像对话面板 DOM
     function initMirrorUI() {
         const panel = document.createElement('section');
         panel.id = 'mirror-panel';
@@ -504,44 +554,35 @@
                 <div style="font-size:0.8rem;color:#666;">跟着圆圈呼吸 · 陪茸茸看一分钟窗外</div>
             </div>
         `;
-        // 插入到共学面板之后（或 actions 之前）
-        el.app.insertBefore(panel, el.app.querySelector('#actions'));
+        el.app.insertBefore(panel, el.app.querySelector('#stars-panel'));
 
-        // 添加深呼吸动画 keyframes（动态注入，不碰 A 的 CSS 文件）
+        // 深呼吸动画 keyframes（动态注入，不碰 A 的 CSS）
         const style = document.createElement('style');
         style.textContent = '@keyframes breatheCircle{0%,100%{transform:scale(.85);}50%{transform:scale(1.15);}}';
         document.head.appendChild(style);
 
-        // 绑定事件
         $('btn-submit-mood').addEventListener('click', submitMood);
         $('mood-input').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') submitMood();
         });
     }
 
-    // 提交状态镜像对话
     function submitMood() {
         const input = $('mood-input');
         const text = (input.value || '').trim();
         if (!text) { showMessage('跟茸茸说一句嘛'); return; }
         const rule = matchRule(text);
 
-        // 宠物回应
         const resp = $('mirror-resp');
         resp.innerHTML = '茸茸：<b style="color:#e65100;">' + rule.resp + '</b>';
-        resp.classList.add('show');
         resp.style.display = 'block';
 
-        // 同步气泡 + 动画
         showMessage(rule.resp);
         triggerHappyAnimation();
-
-        // 执行极小启动动作
         runStartupAction(rule.action);
         input.value = '';
     }
 
-    // 极小启动动作
     function runStartupAction(action) {
         const resp = $('mirror-resp');
         switch (action) {
@@ -564,10 +605,8 @@
         }
     }
 
-    // 深呼吸倒计时启动动作
     function startBreatheTimer() {
-        const timerEl = $('breathe-timer');
-        timerEl.style.display = 'block';
+        $('breathe-timer').style.display = 'block';
         breatheRemaining = BREATHE_SECONDS;
         $('breathe-count').textContent = breatheRemaining;
         clearInterval(breatheTimer);
@@ -584,11 +623,8 @@
     }
 
     /* ============================================================
-     * 模块3：状态记录（B 核心实现）
-     * 学习结束后 → 三个表情按钮 → 点击即记录 + 自动采集数据
+     * 模块3：状态记录（学习结束 emoji 记录 + 自动采集数据）
      * ============================================================ */
-
-    // 动态创建情绪记录面板 DOM
     function initRecordUI() {
         const panel = document.createElement('section');
         panel.id = 'record-panel';
@@ -601,32 +637,22 @@
                 <button class="action-btn" data-mood="sad" title="不太好" style="font-size:1.8rem;padding:8px 14px;">😫</button>
             </div>
         `;
-        el.app.insertBefore(panel, el.app.querySelector('#actions'));
+        el.app.insertBefore(panel, el.app.querySelector('#stars-panel'));
 
-        // 绑定情绪按钮
         panel.querySelectorAll('[data-mood]').forEach(btn => {
             btn.addEventListener('click', () => recordMood(btn.dataset.mood));
         });
     }
 
-    function showMoodRecord() {
-        $('record-panel').style.display = 'block';
-    }
+    function showMoodRecord() { $('record-panel').style.display = 'block'; }
+    function hideMoodRecord() { $('record-panel').style.display = 'none'; }
 
-    function hideMoodRecord() {
-        $('record-panel').style.display = 'none';
-    }
-
-    // 记录情绪（写入契约字段 mood）
     function recordMood(mood) {
         gameState.mood = mood;
-        // 记入本次会话
         const last = profile.sessions[profile.sessions.length - 1];
         if (last) last.mood = mood;
         saveGameState();
-
         hideMoodRecord();
-        const faceCh = mood === 'happy' ? '😊' : (mood === 'neutral' ? '😐' : '😫');
         showMessage(mood === 'happy' ? '收到啦，记下了 😊' :
                     mood === 'neutral' ? '嗯，记下了，辛苦了' : '抱抱，明天会好一点');
         triggerHappyAnimation();
@@ -635,8 +661,9 @@
 
     // 记录一次学习会话（自动采集：专注时长、中断次数、时间段）
     function recordSession() {
-        const focusMin = Math.floor(focusSeconds / 60);
-        if (focusMin < 1) return; // 不足1分钟不记录
+        // 从 C 的 focusBlocks 推算专注时长（每块5分钟）
+        const focusMin = (gameState.focusBlocks || 0) * 5;
+        if (focusMin < 1) return;
 
         const now = new Date();
         const session = {
@@ -648,12 +675,10 @@
         };
         profile.sessions.push(session);
 
-        // 更新专注上限（模块4 演化数据）
         if (focusMin > profile.focusUpperLimit) {
             profile.focusUpperLimit = focusMin;
         }
 
-        // 周X统计（模块4 演化数据：发现周X下午状态最差）
         const wd = now.getDay();
         if (!profile.weekdayStats[wd]) profile.weekdayStats[wd] = { focusMin: 0, count: 0 };
         profile.weekdayStats[wd].focusMin += focusMin;
@@ -663,16 +688,14 @@
     }
 
     /* ============================================================
-     * 模块4：长期陪伴演化（B 提供数据入口与触发，加分项）
+     * 模块4：长期陪伴演化（画像 + 个性化行为触发）
      * ============================================================ */
-
-    // 动态创建画像面板 DOM
     function initProfileUI() {
         const panel = document.createElement('section');
         panel.id = 'profile-summary';
         panel.style.cssText = 'margin-bottom:16px;padding:14px;background:#e8eaf6;border-radius:14px;font-size:0.85rem;color:#666;line-height:1.8;';
         panel.innerHTML = '<span style="color:#888;font-style:italic;">还没有学习记录 · 茸茸会慢慢了解你</span>';
-        el.app.insertBefore(panel, el.app.querySelector('#actions'));
+        el.app.insertBefore(panel, el.app.querySelector('#stars-panel'));
     }
 
     function renderProfile() {
@@ -683,12 +706,10 @@
             return;
         }
 
-        // 计算画像维度
         const total = profile.sessions.length;
         const totalFocus = profile.sessions.reduce((s, x) => s + x.focusMin, 0);
         const avgFocus = Math.round(totalFocus / total);
 
-        // 哪个时间段专注最长
         const hourBuckets = {};
         profile.sessions.forEach(s => {
             const key = Math.floor(s.startHour / 6) * 6;
@@ -703,7 +724,6 @@
         const hourLabel = bestHour === null ? '—' :
             (bestHour == 0 ? '深夜' : bestHour == 6 ? '上午' : bestHour == 12 ? '下午' : '晚上');
 
-        // 哪种情绪启动最快
         const moodBuckets = { happy: [], neutral: [], sad: [] };
         profile.sessions.forEach(s => { if (moodBuckets[s.mood]) moodBuckets[s.mood].push(s.focusMin); });
         let bestMood = '—', bestMoodAvg = 0;
@@ -727,7 +747,6 @@
         const now = new Date();
         const hour = now.getHours();
 
-        // 最近3次是否都在当前时段(±1小时)
         const recent = profile.sessions.slice(-3);
         const sameTime = recent.every(s => Math.abs(s.startHour - hour) <= 1);
         if (sameTime) {
@@ -735,7 +754,6 @@
             return;
         }
 
-        // 周二下午状态最差 → 主动问候
         const tue = profile.weekdayStats[2];
         if (tue && tue.count >= 2 && now.getDay() === 2 && now.getHours() >= 12 && now.getHours() < 14) {
             setTimeout(() => showMessage('下午要不要换个地方学？'), 800);
@@ -750,11 +768,10 @@
         const hasOffline = applyOfflineProgress();
 
         if (!gameState) {
-            // 尝试普通加载
             const saved = Storage.load();
             if (saved) {
                 gameState = saved;
-                if (saved.profile) profile = saved.profile;
+                if (saved._bProfile) profile = saved._bProfile;
                 showMessage('📂 欢迎回来！');
             } else {
                 gameState = { ...GameLogic.defaultState, createdAt: Date.now() };
@@ -764,13 +781,14 @@
 
         render();
 
-        // 如果离线加载没有设置消息，设置默认消息
         if (!hasOffline) {
             const warning = GameLogic.getWarning(gameState);
-            if (warning && !companionActive) {
-                el.message.textContent = warning;
-            }
+            if (warning) el.message.textContent = warning;
         }
+
+        // warningAB.md 第4点：每日登录奖励（页面加载时调用）
+        claimDailyLogin();
+        render();
 
         // 绑定操作按钮事件（A 定义的 .action-btn，B 通过 data-action 读取）
         el.actionBtns.forEach(btn => {
@@ -783,16 +801,17 @@
         el.loadBtn.addEventListener('click', handleLoad);
         el.resetBtn.addEventListener('click', handleReset);
 
-        // 初始化4大模块 UI（动态创建 DOM，使用全新 id）
-        initCompanionUI();    // 模块1：共场陪伴
-        initMirrorUI();       // 模块2：状态镜像对话
-        initRecordUI();       // 模块3：状态记录
-        initProfileUI();      // 模块4：长期画像
+        // 初始化 UI（动态创建 DOM，使用全新 id 不与 A 冲突）
+        initStarsUI();         // 专注星面板（warningAB 第3点）
+        initCompanionUI();     // 模块1：共场陪伴
+        initMirrorUI();        // 模块2：状态镜像对话
+        initRecordUI();        // 模块3：状态记录
+        initProfileUI();       // 模块4：长期画像
 
-        // 渲染画像
         renderProfile();
+        renderStarsInfo();
 
-        // 模块1：点击宠物 → 弹出状态镜像对话
+        // 模块2：点击宠物 → 弹出状态镜像对话
         el.petSprite.addEventListener('click', function () {
             const mirror = $('mirror-panel');
             if (mirror.style.display === 'none' || !mirror.style.display) {
@@ -806,27 +825,28 @@
         });
         el.petSprite.style.cursor = 'pointer';
 
-        // 模块1：走神检测 — 鼠标/键盘活动监听
-        ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt => {
+        // warningAB.md 第1点：专注状态检测 — 鼠标/键盘活动监听
+        ['mousemove', 'keydown', 'click', 'touchstart'].forEach(evt => {
             document.addEventListener(evt, resetActivity, { passive: true });
         });
-        // 模块1：标签页可见性
+        // 标签页可见性（中断计数）
         document.addEventListener('visibilitychange', onVisibilityChange);
 
-        // 启动衰减定时器（通过 C 的 GameLogic.tick）
+        // 启动专注检测心跳
+        startFocusDetection();
+
+        // 启动衰减定时器（通过 C 的 GameLogic.tick + tickFocus）
         tickInterval = setInterval(doTick, TICK_INTERVAL_MS);
 
         // 演化检查（模块4）
         checkEvolution();
 
-        console.log('🐾 茸学伴 已启动 — 共场陪伴 · 状态镜像 · 状态记录 · 长期演化');
+        console.log('🐾 茸学伴 已启动 — 专注星系统 + 共场陪伴 + 状态镜像 + 状态记录 + 长期演化');
     }
 
     // ===== [B] 页面关闭时保存（通过 C 的 Storage 接口）=====
     window.addEventListener('beforeunload', function () {
-        if (gameState) {
-            saveGameState();
-        }
+        if (gameState) saveGameState();
     });
 
     // ===== [B] 启动 =====
