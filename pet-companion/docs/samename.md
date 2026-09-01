@@ -130,7 +130,18 @@
 | `GameLogic.performAction(state, actionKey)` | `state: Object, actionKey: string` | `{ state: Object, message: string }` | 执行操作，返回新状态和消息 |
 | `GameLogic.tick(state, minutes)` | `state: Object, minutes: number` | `Object` | 属性衰减计算，返回新状态。采用小时级极慢衰减，已移除健康值归零重置逻辑，符合 `animallogicC.md` "不惩罚" 原则 |
 | `GameLogic.getWarning(state)` | `state: Object` | `string \| null` | 检查低属性警告，返回消息或 null |
-| `GameLogic.claimDailyLogin(state)` | `state: Object` | `{ state: Object, message: string \| null, claimed: boolean }` | 每日首次登录奖励 2 专注星 |
+| `GameLogic.addFocusTime(state, minutes)` | `state: Object, minutes: number` | `Object` | 累加专注时长（分钟），返回新状态 |
+| `GameLogic.recordMood(state, mood)` | `state: Object, mood: string` | `Object` | 记录情绪标签（happy/neutral/sad），非法值返回原 state |
+| `GameLogic.addInterruption(state)` | `state: Object` | `Object` | 中断次数 +1，返回新状态 |
+| `GameLogic.recordSession(state, data)` | `state: Object, data: Object` | `Object` | 专注学习结束后记录完整学习记录（最多保留 100 条），自动重置 focusTime/interruptions |
+| `GameLogic.getAnalysis(state)` | `state: Object` | `Object` | 基于历史记录生成画像分析，返回 { totalSessions, totalFocusTime, totalStarsEarned, avgFocusTime, avgInterruptions, moodDistribution, bestHour, streakDays, recentDays } |
+| `GameLogic.startCountdown(state, seconds)` | `state: Object, seconds: number` | `Object` | 启动倒计时（秒），返回新状态 |
+| `GameLogic.tickCountdown(state)` | `state: Object` | `{ state: Object, finished: boolean }` | 每秒递减一次，返回 { state, finished } 便于 B 判断是否结束 |
+| `GameLogic.getStarsRate(state)` | `state: Object` | `number` | 根据总星数返回当前获取倍率（软上限），100星以下100%，200星以下75%，300星以下50%，300星以上30% |
+| `GameLogic.claimDailyGoal(state)` | `state: Object` | `{ state: Object, message: string \| null, claimed: boolean }` | 用户标记"今日目标已完成"时调用，每天限 1 次，奖励 3 专注星 |
+| `GameLogic.getAffectionBonus(state)` | `state: Object` | `number` | 返回亲密度里程碑加成倍率，内部使用，已嵌入 performAction |
+| `GameLogic.getAffectionStage(state)` | `state: Object` | `'newbie' \| 'familiar' \| 'intimate' \| 'bestie' \| 'forever'` | 亲密度行为阶段，B 调用后根据返回值切换宠物 CSS class，A 为每个阶段设计视觉形态 |
+| `GameLogic.claimDailyLogin(state, hasWrittenIntention)` | `state: Object, hasWrittenIntention: boolean` | `{ state: Object, message: string \| null, claimed: boolean }` | 用户写下学习意图时发放每日登录奖励 2 专注星，未写意图时返回提示"先写下目标" |
 | `GameLogic.enterFocus(state)` | `state: Object` | `Object` | 标记进入专注状态 |
 | `GameLogic.leaveFocus(state)` | `state: Object` | `{ state: Object, message: string \| null, starsEarned: number }` | 离开专注状态，结算专注星 |
 | `GameLogic.tickFocus(state)` | `state: Object` | `{ state: Object, message: string \| null }` | 每5分钟累加专注区块，达到24块自动结算 |
@@ -252,6 +263,7 @@ GameLogic.actions = {
 | `mood` | string | `'neutral'` | happy/neutral/sad | 学习结束后的情绪标签 | —（已实现） |
 | `interruptions` | number | `0` | 0+ | 学习过程中断次数 | —（已实现） |
 | `affection` | number | `0` | 0+（无上限） | 亲密度（长期陪伴见证） | —（已实现，通过 `pet_free`/`pet_extra` 互动增加） |
+| `history` | Array | `[]` | — | 历次专注学习记录，每项包含 date/startTime/focusTime/mood/interruptions/focusBlocks/starsEarned | —（已实现，通过 `recordSession` 写入，最多保留100条） |
 | `stars` | number | `0` | 0+（软上限） | 专注星（奖励点数） | —（已实现） |
 | `dailyStars` | number | `0` | 0-80 | 当日已获专注星数 | —（已实现，每日重置） |
 | `lastDailyReset` | number | `0` | — | 上次每日重置时间戳 | —（仅内部使用） |
@@ -259,8 +271,10 @@ GameLogic.actions = {
 | `isFocused` | boolean | `false` | true/false | 是否处于专注状态 | —（已实现，B 控制状态切换） |
 | `focusBlocks` | number | `0` | 0-24 | 专注时段累计区块数 | —（已实现，每块=5分钟专注） |
 
-> **已实现**：`focusTime`、`mood`、`interruptions`、`affection`、`stars`、`dailyStars`、`lastDailyReset`、`lastDailyLoginClaim`、`isFocused`、`focusBlocks` 已在 `gameLogic.js` 的 `defaultState` 中添加。  
-> **已移除**：`health`（健康值系统）已按 `animallogicC.md` 新设计移除，不再衰减也不会归零重置。
+> **已实现**：`focusTime`、`mood`、`interruptions`、`affection`、`history`、`countdown`、`stars`、`dailyStars`、`lastDailyReset`、`lastDailyLoginClaim`、`isFocused`、`focusBlocks` 已在 `gameLogic.js` 的 `defaultState` 中添加。  
+> **已移除**：`health`（健康值系统）已按 `animallogicC.md` 新设计移除，不再衰减也不会归零重置。  
+> **软上限**：专注星获取速率根据总星数递减：<100→100%，<200→75%，<300→50%，≥300→30%。  
+> **亲密度里程碑**：互动效果根据亲密度递增：0-9→1.0x，10-24→1.1x，25-49→1.2x，50-99→1.35x，100-199→1.5x，200+→1.75x，已嵌入 performAction 自动生效，B 无需额外处理。
 
 ---
 

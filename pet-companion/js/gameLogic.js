@@ -19,6 +19,12 @@ const GameLogic = {
         mood: 'neutral',  // 情绪标签：happy / neutral / sad
         interruptions: 0, // 中断次数
         affection: 0,     // 亲密度（无上限，长期陪伴见证）
+        // ===== 学习历史记录 =====
+        history: [],       // 历次专注学习记录，每项 { date, startTime, focusTime, mood, interruptions, focusBlocks, starsEarned }
+        // ===== 倒计时字段 =====
+        countdown: 0,      // 倒计时剩余秒数，0 表示未在倒计时中
+        // ===== 每日目标字段 =====
+        dailyGoalCompleted: 0, // 上次完成自定学习目标的时间戳，0 表示未完成
         // ===== 专注星系统字段 =====
         stars: 0,              // 专注星总数
         dailyStars: 0,         // 当日已获专注星数
@@ -111,6 +117,32 @@ const GameLogic = {
         }
     },
 
+    // ===== 亲密度里程碑加成 =====
+    // 亲密度越高，互动效果越强（里程碑逐渐稀疏）
+    // 0-9: 1.0x  |  10-24: 1.1x  |  25-49: 1.2x  |  50-99: 1.35x  |  100-199: 1.5x  |  200+: 1.75x
+    getAffectionBonus: function (state) {
+        const a = state.affection || 0;
+        if (a < 10) return 1.0;
+        if (a < 25) return 1.1;
+        if (a < 50) return 1.2;
+        if (a < 100) return 1.35;
+        if (a < 200) return 1.5;
+        return 1.75;
+    },
+
+    // ===== 亲密度行为阶段（用于 A/B 切换宠物形态/动画） =====
+    // 返回当前所处的行为阶段标识，方便 B 根据阶段切换 CSS class
+    // 阶段定义与 animallogicC.md 亲密度里程碑示例一致
+    // 返回值: 'newbie' | 'familiar' | 'intimate' | 'bestie' | 'forever'
+    getAffectionStage: function (state) {
+        const a = state.affection || 0;
+        if (a < 100) return 'newbie';      // 0-100   新手期
+        if (a < 300) return 'familiar';    // 100-300 熟悉期
+        if (a < 600) return 'intimate';    // 300-600 亲密期
+        if (a < 1000) return 'bestie';     // 600-1000 挚友期
+        return 'forever';                   // 1000+   永恒
+    },
+
     // ===== 执行操作，返回新状态和消息 =====
     performAction: function (state, actionKey) {
         const action = this.actions[actionKey];
@@ -129,19 +161,182 @@ const GameLogic = {
             newState.stars -= action.cost;
         }
 
+        // 亲密度里程碑加成
+        const bonus = this.getAffectionBonus(state);
+
         // 应用效果（亲密度无上限，其余属性 0-100）
         for (const [stat, delta] of Object.entries(effects)) {
+            const scaledDelta = Math.round(delta * bonus);
             if (stat === 'affection') {
-                newState[stat] = Math.max(0, (newState[stat] || 0) + delta);
+                newState[stat] = Math.max(0, (newState[stat] || 0) + scaledDelta);
             } else {
-                newState[stat] = Math.max(0, Math.min(100, (newState[stat] || 0) + delta));
+                newState[stat] = Math.max(0, Math.min(100, (newState[stat] || 0) + scaledDelta));
             }
         }
 
-        // 经验奖励
-        this.addXp(newState, action.xpReward);
+        // 经验奖励 = 消耗专注星 × 5
+        this.addXp(newState, action.cost * 5);
 
         return { state: newState, message: action.message };
+    },
+
+    // ===== 画像数据采集方法 =====
+    // addFocusTime: 累加专注时长（分钟）
+    addFocusTime: function (state, minutes) {
+        const newState = { ...state };
+        newState.focusTime = (newState.focusTime || 0) + minutes;
+        return newState;
+    },
+
+    // recordMood: 记录学习结束后的情绪标签
+    recordMood: function (state, mood) {
+        const validMoods = ['happy', 'neutral', 'sad'];
+        if (!validMoods.includes(mood)) return state;
+        const newState = { ...state };
+        newState.mood = mood;
+        return newState;
+    },
+
+    // addInterruption: 记录一次中断
+    addInterruption: function (state) {
+        const newState = { ...state };
+        newState.interruptions = (newState.interruptions || 0) + 1;
+        return newState;
+    },
+
+    // recordSession: 专注学习结束后，记录本次完整学习记录
+    // data 字段：{ focusTime, mood, interruptions, focusBlocks, starsEarned }
+    // 最多保留最近 100 条，防止 localStorage 膨胀
+    recordSession: function (state, data) {
+        const newState = { ...state };
+        const history = (newState.history || []).slice();
+        history.push({
+            date: new Date().toISOString().slice(0, 10),  // '2026-08-31'
+            startTime: Date.now(),
+            focusTime: data.focusTime || 0,
+            mood: data.mood || 'neutral',
+            interruptions: data.interruptions || 0,
+            focusBlocks: data.focusBlocks || 0,
+            starsEarned: data.starsEarned || 0
+        });
+        // 保留最近 100 条
+        if (history.length > 100) history.splice(0, history.length - 100);
+        newState.history = history;
+        newState.focusTime = 0;   // 本次专注时长归零，等待下次
+        newState.interruptions = 0;
+        return newState;
+    },
+
+    // ===== 画像分析 =====
+    // getAnalysis: 基于历史学习记录生成画像分析数据
+    // 返回对象包含：总览统计、情绪分布、最佳时段、连续学习天数等
+    getAnalysis: function (state) {
+        const history = state.history || [];
+        const total = history.length;
+        if (total === 0) {
+            return {
+                totalSessions: 0,
+                totalFocusTime: 0,
+                totalStarsEarned: 0,
+                avgFocusTime: 0,
+                avgInterruptions: 0,
+                moodDistribution: { happy: 0, neutral: 0, sad: 0 },
+                bestHour: null,
+                streakDays: 0,
+                recentDays: 0
+            };
+        }
+
+        let totalFocusTime = 0;
+        let totalStarsEarned = 0;
+        let totalInterruptions = 0;
+        const moodCount = { happy: 0, neutral: 0, sad: 0 };
+        const hourCount = {};  // 各时段学习次数
+
+        // 收集日期集合用于计算连续天数
+        const dateSet = new Set();
+
+        for (const rec of history) {
+            totalFocusTime += rec.focusTime || 0;
+            totalStarsEarned += rec.starsEarned || 0;
+            totalInterruptions += rec.interruptions || 0;
+            if (rec.mood && moodCount[rec.mood] !== undefined) moodCount[rec.mood]++;
+
+            // 时段分析：根据 startTime 提取小时
+            if (rec.startTime) {
+                const hour = new Date(rec.startTime).getHours();
+                const hourKey = String(hour).padStart(2, '0') + ':00';
+                hourCount[hourKey] = (hourCount[hourKey] || 0) + 1;
+            }
+
+            if (rec.date) dateSet.add(rec.date);
+        }
+
+        // 最佳时段：出现次数最多的时段
+        let bestHour = null;
+        let bestHourCount = 0;
+        for (const [hour, count] of Object.entries(hourCount)) {
+            if (count > bestHourCount) {
+                bestHourCount = count;
+                bestHour = hour;
+            }
+        }
+
+        // 连续学习天数（从最近一次往前数）
+        let streakDays = 0;
+        const sortedDates = [...dateSet].sort((a, b) => b.localeCompare(a)); // 降序
+        if (sortedDates.length > 0) {
+            const today = new Date();
+            // 取最近一条记录日期作为基准
+            const lastDate = new Date(sortedDates[0]);
+            const diffMs = today - lastDate;
+            const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+            // 如果最近一次学习在 2 天内，才计算连续
+            if (diffDays <= 2) {
+                streakDays = 1;
+                for (let i = 1; i < sortedDates.length; i++) {
+                    const prev = new Date(sortedDates[i - 1]);
+                    const curr = new Date(sortedDates[i]);
+                    const gap = (prev - curr) / (24 * 60 * 60 * 1000);
+                    if (gap <= 1.5) {
+                        streakDays++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return {
+            totalSessions: total,
+            totalFocusTime: totalFocusTime,
+            totalStarsEarned: totalStarsEarned,
+            avgFocusTime: Math.round(totalFocusTime / total),
+            avgInterruptions: Math.round((totalInterruptions / total) * 10) / 10,
+            moodDistribution: moodCount,
+            bestHour: bestHour,
+            streakDays: streakDays,
+            recentDays: dateSet.size
+        };
+    },
+
+    // ===== 倒计时逻辑 =====
+    // startCountdown: 启动倒计时（秒），B 在"深呼吸"按钮点击时调用
+    startCountdown: function (state, seconds) {
+        if (seconds <= 0) return state;
+        const newState = { ...state };
+        newState.countdown = seconds;
+        return newState;
+    },
+
+    // tickCountdown: 每秒递减一次，返回 { state, finished } 便于 B 判断是否结束
+    tickCountdown: function (state) {
+        if (!state.countdown || state.countdown <= 0) {
+            return { state, finished: false };
+        }
+        const newState = { ...state };
+        newState.countdown = newState.countdown - 1;
+        return { state: newState, finished: newState.countdown <= 0 };
     },
 
     // ===== 倒计时衰减（每 tick 调用） =====
@@ -199,24 +394,68 @@ const GameLogic = {
     },
 
     // ===== 每日首次登录奖励（规则六） =====
-    // B 在页面加载/初始化时调用
+    // B 在用户写下学习意图时调用（而非页面加载时）
+    // hasWrittenIntention: B 传入 true 表示用户已写下意图，否则不发放奖励
     // 返回 { state, message: string|null, claimed: boolean }
-    claimDailyLogin: function (state) {
+    claimDailyLogin: function (state, hasWrittenIntention = false) {
         const today = new Date().toDateString();
         const lastClaim = state.lastDailyLoginClaim
             ? new Date(state.lastDailyLoginClaim).toDateString()
             : null;
 
-        if (today !== lastClaim) {
-            state.lastDailyLoginClaim = Date.now();
-            this._checkDailyReset(state);
-            const remaining = 80 - state.dailyStars;
-            const award = Math.min(2, remaining);
-            state.stars += award;
-            state.dailyStars += award;
-            return { state, message: `🌅 今日首次登录，获得 ${award} 专注星！`, claimed: true };
+        // 今日已领取过，不再重复发放
+        if (today === lastClaim) {
+            return { state, message: null, claimed: false };
         }
-        return { state, message: null, claimed: false };
+
+        // 未写下意图，提示用户先写意图
+        if (!hasWrittenIntention) {
+            return { state, message: '📝 先写下今天的学习目标吧！', claimed: false };
+        }
+
+        // 写下意图后发放奖励
+        state.lastDailyLoginClaim = Date.now();
+        this._checkDailyReset(state);
+        const remaining = 80 - state.dailyStars;
+        const award = Math.min(2, remaining);
+        state.stars += award;
+        state.dailyStars += award;
+        return { state, message: `🌅 写下目标，获得 ${award} 专注星！`, claimed: true };
+    },
+
+    // ===== 完成自定学习目标奖励（规则九） =====
+    // B 在用户标记"目标已完成"时调用，每天限 1 次，奖励 3 专注星
+    // 返回 { state, message: string|null, claimed: boolean }
+    claimDailyGoal: function (state) {
+        const today = new Date().toDateString();
+        const lastDone = state.dailyGoalCompleted
+            ? new Date(state.dailyGoalCompleted).toDateString()
+            : null;
+
+        // 今日已完成过，不再重复奖励
+        if (today === lastDone) {
+            return { state, message: null, claimed: false };
+        }
+
+        // 发放奖励
+        state.dailyGoalCompleted = Date.now();
+        this._checkDailyReset(state);
+        const remaining = 80 - state.dailyStars;
+        const award = Math.min(3, remaining);
+        state.stars += award;
+        state.dailyStars += award;
+        return { state, message: `🎯 完成今日目标，获得 ${award} 专注星！`, claimed: true };
+    },
+
+    // ===== 专注星软上限（规则八） =====
+    // getStarsRate: 根据总星数返回当前获取倍率
+    // 总星数 < 100: 100%  |  < 200: 75%  |  < 300: 50%  |  >= 300: 30%
+    getStarsRate: function (state) {
+        const total = state.stars || 0;
+        if (total < 100) return 1.0;
+        if (total < 200) return 0.75;
+        if (total < 300) return 0.5;
+        return 0.3;
     },
 
     // ===== 进入专注状态（规则一、二） =====
@@ -247,6 +486,9 @@ const GameLogic = {
         } else {
             earned = 6 + (blocks - 3) * 1;
         }
+
+        // 软上限：根据总星数降低获取速率（规则八）
+        earned = Math.floor(earned * this.getStarsRate(state));
 
         // 每日上限保护（规则五）
         this._checkDailyReset(state);
