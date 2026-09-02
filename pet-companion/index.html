@@ -5,12 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>宠物伙伴</title>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/pet.css" />
 </head>
 <body>
     <div id="app">
-        <!-- 顶部信息栏 -->
+        <!-- ===== 卡通房间背景（纯CSS装饰层，自适应全屏） ===== -->
+        <div class="room-wall"></div>
+        <div class="room-floor"></div>
+        <div class="room-baseboard"></div>
+
+        <!-- 墙上挂画（纯CSS爪印，无emoji） -->
+        <div class="room-frame">
+            <div class="paw-print">
+                <i class="paw-toe t1"></i>
+                <i class="paw-toe t2"></i>
+                <i class="paw-toe t3"></i>
+                <i class="paw-pad"></i>
+            </div>
+        </div>
+        <!-- 墙上时钟（分针会转动） -->
+        <div class="room-clock">
+            <div class="clock-hand clock-hand-h"></div>
+            <div class="clock-hand clock-hand-m"></div>
+            <div class="clock-dot"></div>
+        </div>
+        <!-- 窗户：天空 + 太阳 + 云朵 + 窗帘 -->
+        <div class="room-window">
+            <div class="window-bar-h"></div>
+            <div class="window-bar-v"></div>
+            <div class="window-sun"></div>
+            <div class="window-cloud cloud-1"></div>
+            <div class="window-cloud cloud-2"></div>
+            <div class="curtain curtain-l"></div>
+            <div class="curtain curtain-r"></div>
+        </div>
+        <!-- 地板上的地毯 -->
+        <div class="room-rug"></div>
+        <!-- 右下角盆栽 -->
+        <div class="room-plant">
+            <div class="plant-leaf leaf-1"></div>
+            <div class="plant-leaf leaf-2"></div>
+            <div class="plant-leaf leaf-3"></div>
+            <div class="plant-pot"></div>
+        </div>
+
+        <!-- ===== 左上角：属性面板（无大框，纯文字标签） ===== -->
+        <section id="stats-panel">
+            <div class="stat">
+                <span class="stat-label">饱食度</span>
+                <div class="progress-bar"><div class="progress-fill" id="hunger-fill" style="width: 80%"></div></div>
+                <span class="stat-value" id="hunger-value">80</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">快乐度</span>
+                <div class="progress-bar"><div class="progress-fill" id="happiness-fill" style="width: 70%"></div></div>
+                <span class="stat-value" id="happiness-value">70</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">精力</span>
+                <div class="progress-bar"><div class="progress-fill" id="energy-fill" style="width: 90%"></div></div>
+                <span class="stat-value" id="energy-value">90</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">清洁度</span>
+                <div class="progress-bar"><div class="progress-fill" id="hygiene-fill" style="width: 60%"></div></div>
+                <span class="stat-value" id="hygiene-value">60</span>
+            </div>
+            <!-- 亲密度（无上限，只增不减，B 渲染数值） -->
+            <div class="stat stat-affection">
+                <span class="stat-label">亲密度</span>
+                <span class="stat-value" id="affection-value">0</span>
+            </div>
+        </section>
+
+        <!-- ===== 顶部中央：名字/等级 + 存档按钮 + 免费互动 ===== -->
         <header>
-            <h1 id="pet-name">🐾 小宠物</h1>
+            <div class="header-top">
+                <h1 id="pet-name">小宠物</h1>
+                <!-- 存档管理（收纳为小圆钮） -->
+                <div id="save-management">
+                    <button class="secondary-btn" id="save-btn" title="保存">存</button>
+                    <button class="secondary-btn" id="load-btn" title="读档">读</button>
+                    <button class="secondary-btn danger" id="reset-btn" title="重置">清</button>
+                </div>
+            </div>
             <div class="meta-info">
                 <span>等级 <strong id="level">1</strong></span>
                 <span>经验 <strong id="xp">0</strong>/<strong id="xp-next">100</strong></span>
@@ -20,52 +98,86 @@
             <div class="progress-bar" id="xp-bar">
                 <div class="progress-fill" id="xp-fill" style="width: 0%"></div>
             </div>
+            <!-- 免费互动（每天各限 1 次，次数限制由 B 控制） -->
+            <div class="action-group">
+                <h3 class="action-group-title">免费互动 <small>每天各 1 次</small></h3>
+                <div class="action-grid action-grid-free">
+                    <button class="action-btn action-btn-free" data-action="pet_free">抚摸</button>
+                    <button class="action-btn action-btn-free" data-action="greet">打招呼</button>
+                </div>
+            </div>
         </header>
 
-        <!-- 宠物展示区 -->
+        <!-- ===== 右上角：专注星面板（数据由 B 通过 GameLogic.getStarsInfo 渲染） ===== -->
+        <section id="star-panel">
+            <div class="star-main">
+                <span class="star-icon"></span>
+                <span class="star-count" id="star-count">0</span>
+                <span class="star-label">专注星</span>
+            </div>
+            <div class="star-meta">
+                <span>今日已获 <strong id="daily-star-count">0</strong></span>
+                <span>今日剩余 <strong id="daily-star-remaining">80</strong></span>
+                <span>专注区块 <strong id="focus-block-count">0</strong>/24</span>
+            </div>
+        </section>
+
+        <!-- ===== 中央：宠物展示区（站在地板地毯上） ===== -->
         <section id="pet-area">
-            <div id="pet-sprite" class="pet-normal">😊</div>
+            <div id="pet-sprite" class="pet-normal">
+                <div class="cat-glow"></div>
+                <div class="cat-tail">
+                    <div class="cat-tail-mark cat-tail-mark-1"></div>
+                    <div class="cat-tail-mark cat-tail-mark-2"></div>
+                </div>
+                <div class="cat-body">
+                    <div class="cat-cheek cat-cheek-l"></div>
+                    <div class="cat-cheek cat-cheek-r"></div>
+                    <div class="cat-collar"></div>
+                </div>
+                <div class="cat-ear cat-ear-l"></div>
+                <div class="cat-ear cat-ear-r"></div>
+                <div class="cat-ear-inner cat-ear-inner-l"></div>
+                <div class="cat-ear-inner cat-ear-inner-r"></div>
+                <div class="cat-whisker cat-whisker-l1"></div>
+                <div class="cat-whisker cat-whisker-l2"></div>
+                <div class="cat-whisker cat-whisker-r1"></div>
+                <div class="cat-whisker cat-whisker-r2"></div>
+                <div class="cat-eye cat-eye-l"></div>
+                <div class="cat-eye cat-eye-r"></div>
+                <div class="cat-mouth"></div>
+                <div class="cat-blush cat-blush-l"></div>
+                <div class="cat-blush cat-blush-r"></div>
+                <div class="cat-arm cat-arm-l"></div>
+                <div class="cat-arm cat-arm-r"></div>
+                <div class="cat-foot cat-foot-l"></div>
+                <div class="cat-foot cat-foot-r"></div>
+                <div class="cat-hearts"><span></span><span></span><span></span></div>
+                <div class="cat-zzz"><span>Z</span><span>z</span><span>z</span></div>
+                <div class="cat-bubbles"><span></span><span></span><span></span><span></span><span></span></div>
+                <div class="cat-spark"></div>
+                <div class="cat-food"></div>
+                <div class="cat-hand5"></div>
+            </div>
             <div id="pet-message" class="message-bubble">你好！我是你的小宠物～</div>
         </section>
 
-        <!-- 属性面板 -->
-        <section id="stats-panel">
-            <div class="stat">
-                <span class="stat-label">🍔 饱食度</span>
-                <div class="progress-bar"><div class="progress-fill" id="hunger-fill" style="width: 80%"></div></div>
-                <span class="stat-value" id="hunger-value">80</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">😄 快乐度</span>
-                <div class="progress-bar"><div class="progress-fill" id="happiness-fill" style="width: 70%"></div></div>
-                <span class="stat-value" id="happiness-value">70</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">⚡ 精力</span>
-                <div class="progress-bar"><div class="progress-fill" id="energy-fill" style="width: 90%"></div></div>
-                <span class="stat-value" id="energy-value">90</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">🧹 清洁度</span>
-                <div class="progress-bar"><div class="progress-fill" id="hygiene-fill" style="width: 60%"></div></div>
-                <span class="stat-value" id="hygiene-value">60</span>
-            </div>
-        </section>
-
-        <!-- 操作按钮 -->
+        <!-- ===== 底部：点数互动按钮（消耗专注星，data-action 与 GameLogic.actions 一致） ===== -->
         <section id="actions">
-            <button class="action-btn" data-action="feed">🍔 喂食</button>
-            <button class="action-btn" data-action="play">🎮 玩耍</button>
-            <button class="action-btn" data-action="sleep">😴 睡觉</button>
-            <button class="action-btn" data-action="clean">🛁 洗澡</button>
-            <button class="action-btn" data-action="heal">💊 治疗</button>
-        </section>
-
-        <!-- 存档管理 -->
-        <section id="save-management">
-            <button class="secondary-btn" id="save-btn">💾 保存</button>
-            <button class="secondary-btn" id="load-btn">📂 读档</button>
-            <button class="secondary-btn danger" id="reset-btn">🗑️ 重置</button>
+            <div class="action-group">
+                <h3 class="action-group-title">点数互动 <small>消耗专注星</small></h3>
+                <div class="action-grid">
+                    <button class="action-btn action-btn-star" data-action="feed">喂食 <span class="star-cost"><i class="mini-star"></i>3</span></button>
+                    <button class="action-btn action-btn-star" data-action="clean">洗澡 <span class="star-cost"><i class="mini-star"></i>3</span></button>
+                    <button class="action-btn action-btn-star" data-action="highfive">击掌 <span class="star-cost"><i class="mini-star"></i>2</span></button>
+                    <button class="action-btn action-btn-star" data-action="cheer">加油 <span class="star-cost"><i class="mini-star"></i>1</span></button>
+                </div>
+                <!-- 第三行：字数较长，独立成行、宽度自适应，不必与上两行对齐 -->
+                <div class="action-grid action-grid-lower">
+                    <button class="action-btn action-btn-star" data-action="pet_extra">额外抚摸 <span class="star-cost"><i class="mini-star"></i>1</span></button>
+                    <button class="action-btn action-btn-star" data-action="sleep">快速充电 <span class="star-cost"><i class="mini-star"></i>2</span></button>
+                </div>
+            </div>
         </section>
     </div>
 

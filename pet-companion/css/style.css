@@ -5,61 +5,738 @@
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+}
+
 body {
-    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    background: linear-gradient(135deg, #fce4ec, #e8f5e9);
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+    /* 可爱字体：英文数字走 Comic Sans，中文优先幼圆 */
+    font-family: 'Comic Sans MS', 'YouYuan', 'Yuanti SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    overflow: hidden;
+    background: #cf9460;
 }
 
-/* ===== 主容器 ===== */
+/* ============================================================
+ * 全屏卡通房间（#app 即房间，自适应整个视口）
+ * ============================================================ */
 #app {
-    width: 100%;
-    max-width: 420px;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+}
+
+/* ---- 墙面：奶油色条纹墙纸 ---- */
+.room-wall {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 62%;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 45%),
+        repeating-linear-gradient(90deg, #fdf1e3 0 70px, #fbe6d2 70px 140px);
+    z-index: 0;
+}
+
+/* ---- 地板：木地板（横向板条 + 接缝线） ---- */
+.room-floor {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 38%;
+    background:
+        repeating-linear-gradient(180deg, rgba(107, 62, 38, 0.10) 0 2px, transparent 2px 46px),
+        repeating-linear-gradient(90deg, rgba(107, 62, 38, 0.06) 0 2px, transparent 2px 156px),
+        linear-gradient(180deg, #e2ab77, #cd915a);
+    z-index: 0;
+}
+
+/* ---- 墙脚踢脚线 ---- */
+.room-baseboard {
+    position: absolute;
+    left: 0; right: 0; bottom: 38%;
+    height: 16px;
+    background: #fffdf8;
+    box-shadow: 0 3px 6px rgba(107, 62, 38, 0.18);
+    z-index: 1;
+}
+
+/* ---- 地毯（宠物站的位置） ---- */
+.room-rug {
+    position: absolute;
+    left: 50%;
+    bottom: 6%;
+    transform: translateX(-50%);
+    width: min(420px, 78vw);
+    height: 104px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, #ffd7de 0 60%, #ffc2cc 60% 74%, #ffb3c1 74%);
+    box-shadow: inset 0 8px 16px rgba(107, 62, 38, 0.10);
+    z-index: 2;
+}
+
+.room-rug::after {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    border: 3px dashed rgba(255, 255, 255, 0.75);
+}
+
+/* ---- 墙上挂画（左墙，纯CSS爪印） ---- */
+.room-frame {
+    position: absolute;
+    left: 5%;
+    top: 26%;
+    width: 78px;
+    height: 92px;
+    background: #fffdf8;
+    border: 7px solid #b07c52;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(107, 62, 38, 0.22);
+    transform: rotate(-4deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+/* 爪印：掌心 + 三根趾头 */
+.paw-print {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    transform: rotate(-12deg);
+}
+
+.paw-pad {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 19px;
+    background: #b07c52;
+    border-radius: 50% 50% 45% 45%;
+}
+
+.paw-toe {
+    position: absolute;
+    top: 0;
+    width: 11px;
+    height: 13px;
+    background: #b07c52;
+    border-radius: 50%;
+}
+
+.paw-toe.t1 { left: 1px; top: 7px; }
+.paw-toe.t2 { left: 16.5px; top: 0; }
+.paw-toe.t3 { right: 1px; top: 7px; }
+
+/* ---- 墙上时钟（右墙，分针转动） ---- */
+.room-clock {
+    position: absolute;
+    right: 6%;
+    top: 24%;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: #fffdf8;
+    border: 6px solid #8d6e63;
+    box-shadow: 0 4px 10px rgba(107, 62, 38, 0.22);
+    z-index: 1;
+}
+
+.clock-hand {
+    position: absolute;
+    left: calc(50% - 2px);
+    bottom: 50%;
+    width: 4px;
+    border-radius: 2px;
+    background: #5d4037;
+    transform-origin: 50% 100%;
+}
+
+.clock-hand-h {
+    height: 13px;
+    transform: rotate(300deg); /* 指向 10 点 */
+}
+
+.clock-hand-m {
+    height: 19px;
+    background: #8d6e63;
+    animation: clockSpin 60s linear infinite;
+}
+
+.clock-dot {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 8px; height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: 50%;
+    background: #5d4037;
+}
+
+@keyframes clockSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---- 窗户（加大，偏房间右侧，天空+太阳+云） ---- */
+.room-window {
+    position: absolute;
+    left: 68%;
+    top: 19vh;
+    transform: translateX(-50%);
+    width: 310px;
+    height: 236px;
+    border: 12px solid #fffdf8;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #a5ddff 0%, #d8f0ff 100%);
+    box-shadow: 0 6px 16px rgba(107, 62, 38, 0.25);
+    overflow: hidden;
+    z-index: 1;
+}
+
+/* 窗框十字 */
+.window-bar-h {
+    position: absolute;
+    left: 0; right: 0; top: 50%;
+    height: 8px;
+    margin-top: -4px;
+    background: #fffdf8;
+    z-index: 2;
+}
+
+.window-bar-v {
+    position: absolute;
+    top: 0; bottom: 0; left: 50%;
+    width: 8px;
+    margin-left: -4px;
+    background: #fffdf8;
+    z-index: 2;
+}
+
+/* 太阳（呼吸光晕） */
+.window-sun {
+    position: absolute;
+    top: 22px; right: 30px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #ffdd66;
+    box-shadow: 0 0 18px 6px rgba(255, 221, 102, 0.75);
+    animation: sunGlow 4s ease-in-out infinite;
+    z-index: 1;
+}
+
+@keyframes sunGlow {
+    0%, 100% { box-shadow: 0 0 14px 4px rgba(255, 221, 102, 0.6); }
+    50%      { box-shadow: 0 0 24px 9px rgba(255, 221, 102, 0.9); }
+}
+
+/* 云朵（缓慢飘动） */
+.window-cloud {
+    position: absolute;
+    width: 44px;
+    height: 16px;
+    border-radius: 10px;
     background: #fff;
-    border-radius: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-    padding: 24px;
-    transition: box-shadow 0.3s;
+    opacity: 0.95;
+    z-index: 1;
 }
 
-#app:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+.window-cloud::before,
+.window-cloud::after {
+    content: '';
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
 }
 
-/* ===== 顶部信息栏 ===== */
+.window-cloud::before {
+    width: 20px; height: 20px;
+    left: 6px; top: -9px;
+}
+
+.window-cloud::after {
+    width: 14px; height: 14px;
+    right: 8px; top: -5px;
+}
+
+.cloud-1 {
+    left: -60px; top: 52px;
+    animation: cloudDrift 26s linear infinite;
+}
+
+.cloud-2 {
+    left: -110px; top: 128px;
+    transform: scale(0.7);
+    animation: cloudDrift 34s linear infinite;
+    animation-delay: -14s;
+}
+
+@keyframes cloudDrift {
+    from { transform: translateX(0); }
+    to   { transform: translateX(470px); }
+}
+
+/* 窗帘（左右两片，条纹） */
+.curtain {
+    position: absolute;
+    top: -8px;
+    width: 50px;
+    height: 194px;
+    background: repeating-linear-gradient(90deg, #ffb9c0 0 8px, #ffd3d8 8px 16px);
+    border-radius: 0 0 18px 18px;
+    box-shadow: 0 3px 8px rgba(107, 62, 38, 0.2);
+    z-index: 3;
+}
+
+.curtain-l { left: -8px; }
+.curtain-r { right: -8px; }
+
+/* ---- 盆栽（右下角地板） ---- */
+.room-plant {
+    position: absolute;
+    right: 4%;
+    bottom: 33%;
+    width: 74px;
+    height: 118px;
+    z-index: 2;
+}
+
+.plant-pot {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 38px;
+    background: linear-gradient(180deg, #e0956a, #d07f52);
+    border-radius: 4px 4px 12px 12px;
+    box-shadow: inset 0 6px 0 rgba(255, 255, 255, 0.25);
+}
+
+.plant-pot::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: -4px;
+    right: -4px;
+    height: 12px;
+    background: #e0956a;
+    border-radius: 4px;
+}
+
+.plant-leaf {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    width: 26px;
+    height: 62px;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    background: linear-gradient(180deg, #9ccc65, #7cb342);
+    transform-origin: 50% 100%;
+}
+
+.leaf-1 { transform: translateX(-50%) rotate(-26deg); }
+.leaf-2 { transform: translateX(-50%) rotate(0deg) translateY(-10px); height: 72px; }
+.leaf-3 { transform: translateX(-50%) rotate(26deg); }
+
+/* ============================================================
+ * UI 面板（无大框，直接浮在房间之上，靠文字投影保证可读）
+ * ============================================================ */
+
+/* ---- 左上角：属性面板（去框） ---- */
+#stats-panel {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    width: 238px;
+    z-index: 20;
+}
+
+.stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.stat:last-child {
+    margin-bottom: 0;
+}
+
+.stat-label {
+    width: 76px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #5d4037;
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.85), 0 0 6px rgba(255, 253, 248, 0.6);
+}
+
+.stat .progress-bar {
+    flex: 1;
+    height: 10px;
+    background: rgba(107, 62, 38, 0.18);
+    box-shadow: inset 0 1px 3px rgba(107, 62, 38, 0.18);
+}
+
+.stat .stat-value {
+    width: 30px;
+    text-align: right;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #6d4c41;
+    flex-shrink: 0;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.85);
+}
+
+/* ---- 顶部中央：信息区 + 免费互动（去框） ---- */
 header {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
     text-align: center;
-    margin-bottom: 16px;
+    z-index: 20;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
 }
 
 #pet-name {
-    font-size: 1.5rem;
-    color: #333;
-    margin-bottom: 6px;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #5d4037;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.85), 0 0 8px rgba(255, 253, 248, 0.6);
 }
 
 .meta-info {
     display: flex;
     justify-content: center;
-    gap: 16px;
-    font-size: 0.85rem;
-    color: #666;
-    margin-bottom: 8px;
+    gap: 12px;
+    font-size: 0.78rem;
+    color: #6d4c41;
+    margin-bottom: 6px;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.85);
 }
 
 .meta-info strong {
-    color: #333;
+    font-weight: 800;
+    color: #5d4037;
+}
+
+/* ---- 右上角：专注星面板（去框） ---- */
+#star-panel {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 208px;
+    z-index: 20;
+}
+
+.star-main {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-bottom: 8px;
+    border-bottom: 2px dotted rgba(107, 62, 38, 0.3);
+    margin-bottom: 8px;
+}
+
+/* 大星星：clip-path 五角星（替代 emoji） */
+.star-icon {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, #ffe082, #ffb300);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    filter: drop-shadow(0 1px 1px rgba(107, 62, 38, 0.3));
+}
+
+.star-count {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #ef6c00;
+    line-height: 1;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.9);
+}
+
+.star-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #6d4c41;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.85);
+}
+
+.star-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #6d4c41;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.85);
+}
+
+.star-meta strong {
+    font-weight: 800;
+    color: #5d4037;
+}
+
+/* ============================================================
+ * 宠物展示区（站在地板地毯上，居中偏下）
+ * ============================================================ */
+#pet-area {
+    position: absolute;
+    left: 50%;
+    bottom: 12%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+}
+
+#pet-sprite {
+    position: relative;
+    transition: transform 0.3s ease;
+    cursor: pointer;
+    user-select: none;
+}
+
+#pet-sprite:hover {
+    transform: scale(1.05);
+}
+
+/* 宠物脚下的投影（贴合地面） */
+#pet-area::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 168px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(107, 62, 38, 0.16);
+    filter: blur(2px);
+}
+
+/* 宠物情绪动画 — 核心动画已迁移到 pet.css */
+.pet-normal { }
+.pet-happy { }
+.pet-sleeping { }
+
+/* ---- 对话气泡（悬于宠物头顶） ---- */
+.message-bubble {
+    position: absolute;
+    top: -48px;
+    left: -12px;
+    width: max-content;
+    max-width: 300px;
+    padding: 9px 16px;
+    background: rgba(255, 253, 248, 0.96);
+    border: 2.5px solid rgba(107, 62, 38, 0.22);
+    border-radius: 16px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #5d4037;
+    text-align: center;
+    white-space: nowrap;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 15;
+}
+
+.message-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -9px;
+    left: auto;
+    right: 36px;
+    transform: none;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 9px solid rgba(255, 253, 248, 0.96);
+}
+
+/* ============================================================
+ * 右下角：点数互动按钮（2×3 网格，直接浮在地板上）
+ * ============================================================ */
+#actions {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    z-index: 20;
+}
+
+.action-group {
+    margin-bottom: 0;
+}
+
+.action-group-title {
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #5d4037;
+    margin-bottom: 8px;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.9), 0 0 8px rgba(255, 253, 248, 0.7);
+}
+
+header .action-group-title {
+    text-align: center;
+    margin-top: 10px;
+}
+
+.action-group-title small {
+    font-weight: normal;
+    color: #bcaaa4;
+    margin-left: 4px;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+/* 点数互动第三行：字数较长，列宽自适应内容，不必与上两行对齐 */
+.action-grid-lower {
+    grid-template-columns: repeat(2, auto);
+    margin-top: 8px;
+}
+
+/* 免费互动：两列排布（顶部卡片内） */
+.action-grid-free {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* ---- 卡通按钮：实底 + 描边 + 底部厚度 ---- */
+.action-btn {
+    padding: 9px 4px;
+    border: 2.5px solid rgba(107, 62, 38, 0.3);
+    border-radius: 14px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1.25;
+    background: #fff;
+    color: #5d4037;
+    cursor: pointer;
+    box-shadow: 0 3px 0 rgba(107, 62, 38, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 0 rgba(107, 62, 38, 0.22);
+}
+
+.action-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 rgba(107, 62, 38, 0.22);
+}
+
+/* 免费互动按钮：绿色系 */
+.action-btn-free {
+    background: #e2f3e4;
+    color: #2e7d32;
+}
+
+.action-btn-free:hover {
+    background: #d0ecd4;
+}
+
+/* 点数互动按钮：金色系 */
+.action-btn-star {
+    background: #fff6de;
+    color: #7a4f2d;
+}
+
+.action-btn-star:hover {
+    background: #ffedc4;
+}
+
+/* 专注星消耗标注（mini-star 为纯CSS小星星） */
+.star-cost {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #e65100;
+    opacity: 0.95;
+    margin-left: 2px;
+}
+
+.mini-star {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 3px;
+    background: linear-gradient(180deg, #ffd54f, #fb8c00);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    vertical-align: -1px;
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 3px 0 rgba(107, 62, 38, 0.22);
+}
+
+/* ---- 存档管理：小文字圆钮（顶部信息区内） ---- */
+#save-management {
+    display: flex;
+    gap: 6px;
+}
+
+.secondary-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 2.5px solid rgba(107, 62, 38, 0.3);
+    border-radius: 50%;
+    font-size: 0.82rem;
+    font-weight: 800;
+    background: #fff;
+    color: #5d4037;
+    cursor: pointer;
+    box-shadow: 0 2px 0 rgba(107, 62, 38, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    line-height: 1;
+}
+
+.secondary-btn:hover {
+    transform: translateY(-1px);
+    background: #f7f0e6;
+}
+
+.secondary-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 rgba(107, 62, 38, 0.22);
+}
+
+.secondary-btn.danger {
+    color: #e57373;
+    border-color: rgba(229, 115, 115, 0.5);
+}
+
+.secondary-btn.danger:hover {
+    background: #ffebee;
 }
 
 /* ===== 进度条 ===== */
 .progress-bar {
     width: 100%;
-    height: 10px;
-    background: #eee;
+    height: 9px;
+    background: rgba(107, 62, 38, 0.12);
     border-radius: 10px;
     overflow: hidden;
     margin: 4px 0;
@@ -72,218 +749,131 @@ header {
     background: linear-gradient(90deg, #81c784, #66bb6a);
 }
 
-/* ===== 宠物展示区 ===== */
-#pet-area {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 0;
-    margin-bottom: 8px;
-}
-
-#pet-sprite {
-    font-size: 5rem;
-    transition: transform 0.3s ease;
-    cursor: default;
-    user-select: none;
-}
-
-#pet-sprite:hover {
-    transform: scale(1.1);
-}
-
-/* 宠物情绪动画 */
-.pet-normal { animation: idleBounce 2s ease-in-out infinite; }
-.pet-happy { animation: happyJump 0.6s ease; }
-.pet-sleeping { animation: sleepFloat 3s ease-in-out infinite; }
-.pet-sick { animation: sickShake 0.5s ease infinite; }
-
-@keyframes idleBounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
-}
-
-@keyframes happyJump {
-    0% { transform: translateY(0) scale(1); }
-    30% { transform: translateY(-20px) scale(1.15); }
-    60% { transform: translateY(-10px) scale(1.05); }
-    100% { transform: translateY(0) scale(1); }
-}
-
-@keyframes sleepFloat {
-    0%, 100% { transform: translateY(0) scale(0.95); opacity: 0.8; }
-    50% { transform: translateY(-4px) scale(1); opacity: 1; }
-}
-
-@keyframes sickShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-}
-
-/* 对话气泡 */
-.message-bubble {
-    margin-top: 12px;
-    padding: 10px 18px;
-    background: #f1f8e9;
-    border-radius: 18px;
-    font-size: 0.9rem;
-    color: #555;
-    max-width: 280px;
-    text-align: center;
-    position: relative;
-    transition: opacity 0.3s, transform 0.3s;
-}
-
-.message-bubble::before {
-    content: '';
-    position: absolute;
-    top: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 8px solid #f1f8e9;
-}
-
-/* ===== 属性面板 ===== */
-#stats-panel {
-    margin-bottom: 16px;
-}
-
-.stat {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.stat-label {
-    width: 70px;
-    font-size: 0.85rem;
-    color: #555;
-    flex-shrink: 0;
-}
-
-.stat .progress-bar {
-    flex: 1;
-    height: 10px;
-    background: #f0f0f0;
-}
-
-.stat .progress-fill {
-    height: 100%;
-    border-radius: 10px;
-    transition: width 0.5s ease;
-}
-
-.stat .stat-value {
-    width: 36px;
-    text-align: right;
-    font-size: 0.8rem;
-    color: #888;
-    flex-shrink: 0;
-}
-
 /* 各属性颜色 */
-#hunger-fill  { background: linear-gradient(90deg, #ffb74d, #ff9800); }
+#hunger-fill    { background: linear-gradient(90deg, #ffb74d, #ff9800); }
 #happiness-fill { background: linear-gradient(90deg, #ffd54f, #ffca28); }
-#energy-fill  { background: linear-gradient(90deg, #64b5f6, #42a5f5); }
-#hygiene-fill { background: linear-gradient(90deg, #81c784, #66bb6a); }
+#energy-fill    { background: linear-gradient(90deg, #64b5f6, #42a5f5); }
+#hygiene-fill   { background: linear-gradient(90deg, #81c784, #66bb6a); }
 
-/* ===== 操作按钮 ===== */
-#actions {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
-}
+/* ============================================================
+ * B 动态创建的模块面板（companion / mirror / record / profile）
+ * JS 内联样式不含定位属性，这里用外部 CSS 统一定位
+ * ============================================================ */
 
-.action-btn {
-    padding: 12px 8px;
-    border: none;
+/* 左下角：共场陪伴面板（半透明，需覆盖 JS 内联背景色） */
+#companion-panel {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    width: 252px;
     border-radius: 14px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    background: #f5f5f5;
-    color: #444;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    user-select: none;
+    box-shadow: 0 4px 14px rgba(107, 62, 38, 0.18);
+    background: rgba(243, 248, 233, 0.78) !important;
+    z-index: 20;
 }
 
-.action-btn:hover {
-    background: #e8f5e9;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+/* 左侧：画像摘要（叠在共场陪伴上方，半透明） */
+#profile-summary {
+    position: absolute;
+    left: 16px;
+    bottom: 196px;
+    width: 252px;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(107, 62, 38, 0.18);
+    background: rgba(232, 234, 246, 0.78) !important;
+    z-index: 20;
 }
 
-.action-btn:active {
-    transform: translateY(0);
-    box-shadow: none;
+/* 中央浮层：状态镜像对话（点击宠物弹出） */
+#mirror-panel {
+    position: absolute;
+    left: 50%;
+    top: 40%;
+    transform: translate(-50%, -50%);
+    width: min(360px, 92vw);
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(107, 62, 38, 0.3);
+    z-index: 40;
 }
 
-.action-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+/* 中央浮层：学习结束情绪记录 */
+#record-panel {
+    position: absolute;
+    left: 50%;
+    bottom: 216px;
+    transform: translateX(-50%);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(107, 62, 38, 0.25);
+    z-index: 40;
 }
 
-/* ===== 存档管理 ===== */
-#save-management {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-}
-
-.secondary-btn {
-    padding: 10px 18px;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    background: #fff;
-    color: #555;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.secondary-btn:hover {
-    background: #f5f5f5;
-    border-color: #bbb;
-}
-
-.secondary-btn.danger {
-    color: #e57373;
-    border-color: #ffcdd2;
-}
-
-.secondary-btn.danger:hover {
-    background: #ffebee;
-    border-color: #ef9a9a;
-}
-
-/* ===== 响应式 ===== */
-@media (max-width: 480px) {
-    #app {
-        padding: 16px;
-        border-radius: 18px;
+/* ============================================================
+ * 响应式
+ * ============================================================ */
+@media (max-width: 960px) {
+    .room-frame, .room-clock, .room-plant {
+        display: none;
     }
 
-    #pet-sprite {
-        font-size: 4rem;
+    .room-window {
+        width: 230px;
+        height: 176px;
+        top: 17vh;
     }
+
+    .curtain {
+        width: 38px;
+        height: 146px;
+    }
+
+    .cloud-1 { top: 40px; }
+    .cloud-2 { top: 96px; }
+
+    header { width: 268px; }
+
+    #stats-panel { width: 208px; }
+
+    #star-panel { width: 172px; }
+
+    #companion-panel, #profile-summary { width: 214px; }
+    #profile-summary { bottom: 178px; }
+}
+
+@media (max-width: 620px) {
+    .room-window { display: none; }
+
+    /* 顶部三卡改为：属性左上 / 专注星右上 / 信息卡下移 */
+    header {
+        top: 148px;
+        width: min(300px, 94vw);
+    }
+
+    #stats-panel {
+        width: 46vw;
+        max-width: 178px;
+        padding: 8px 10px;
+    }
+
+    .stat-label { width: 58px; font-size: 0.7rem; }
+
+    #star-panel {
+        width: 42vw;
+        max-width: 138px;
+        padding: 8px 10px;
+    }
+
+    .star-count { font-size: 1.2rem; }
+    .star-meta { font-size: 0.66rem; }
+
+    /* 小屏隐藏 B 的两个常驻小面板，避免与底栏挤在一起 */
+    #companion-panel, #profile-summary { display: none; }
+
+    #record-panel { bottom: 188px; }
+
+    #pet-sprite { --cs: 0.8; }
 
     .action-btn {
-        padding: 10px 6px;
-        font-size: 0.8rem;
-    }
-
-    .meta-info {
-        gap: 10px;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
+        padding: 8px 2px;
     }
 }
-
-11111111111111111
