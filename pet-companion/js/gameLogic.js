@@ -32,6 +32,8 @@ const GameLogic = {
         lastDailyLoginClaim: 0,// 上次领取登录奖励的时间戳
         isFocused: false,      // 是否处于专注状态
         focusBlocks: 0,        // 当前专注时段累计区块数（上限24）
+        // ===== 免费互动每日使用记录 =====
+        freeActionUsage: { pet_free: null, greet: null },
         // =========================
         createdAt: Date.now()
     },
@@ -62,14 +64,12 @@ const GameLogic = {
             label: '抚摸',
             effects: { affection: 1, happiness: 2 },
             cost: 0,
-            xpReward: 3,
             message: '😊 暖暖的～'
         },
         greet: {
             label: '打招呼',
             effects: { happiness: 1 },
             cost: 0,
-            xpReward: 2,
             message: '👋 它抬头看了你一眼'
         },
         // ─── 点数互动（消耗专注星） ───
@@ -77,42 +77,36 @@ const GameLogic = {
             label: '喂食',
             effects: { hunger: 15 },
             cost: 3,
-            xpReward: 15,
             message: '🍔 好吃～谢谢你！'
         },
         clean: {
             label: '洗澡',
             effects: { hygiene: 20 },
             cost: 3,
-            xpReward: 12,
             message: '🧼 好干净！'
         },
         highfive: {
             label: '击掌',
             effects: { energy: 5, happiness: 3 },
             cost: 2,
-            xpReward: 10,
             message: '✋ 啪！配合完美！'
         },
         cheer: {
             label: '加油',
             effects: { happiness: 5 },
             cost: 1,
-            xpReward: 5,
             message: '💪 加油加油！'
         },
         pet_extra: {
             label: '抚摸（额外）',
             effects: { affection: 2, happiness: 3 },
             cost: 1,
-            xpReward: 8,
             message: '🥰 它蹭了蹭你的手'
         },
         sleep: {
             label: '睡觉（快速充电）',
             effects: { energy: 20 },
             cost: 2,
-            xpReward: 10,
             message: '😴 充能完毕！'
         }
     },

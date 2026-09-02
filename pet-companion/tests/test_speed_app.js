@@ -1,28 +1,13 @@
 /**
- * app.js — 核心交互逻辑
- * ===== [B] 全部文件归 B 全权负责 =====
- * B 调用 C 的 GameLogic 和 Storage 公开接口
- * A 不涉及此文件，但此文件引用了 A 定义的 HTML id
- * =====================================
+ * test_speed_app.js — 100倍速测试版（基于 app.js 修改）
+ * ===== [B] 仅用于测试，不用于生产 =====
  *
- * 本文件实现：
- *   1. 手动专注模式（用户点击按钮开始/结束）
- *   2. 专注星系统调用（enterFocus/leaveFocus/tickFocus/getStarsInfo/claimDailyLogin）
- *   3. 每日免费互动次数限制（pet_free / greet 各1次/天，B 控制）
- *   4. 专注星信息渲染到 UI（star-count / daily-star-* / focus-block-count）
- *   5. 移除 .pet-sick 使用（health 已移除）
+ * 修改点：
+ *   1. TICK_INTERVAL_MS = 3000（3秒，原5分钟）
+ *   2. doTick 中 GameLogic.tick 传入 500 分钟（原5分钟）
+ *   3. 添加速度指示器
  *
- * 同时保留茸学伴4大模块（通过动态 DOM 实现，新 id 不与 A 冲突）：
- *   模块1：共场陪伴 + 今日专注统计
- *   模块2：状态镜像对话（规则引擎 + 极小启动动作）
- *   模块3：状态记录（学习结束 emoji 记录 + 自动采集数据）
- *   模块4：长期陪伴演化（画像 + 个性化行为触发）
- *
- * 契约遵守：
- *   - 仅引用 A 定义的 HTML id（level/xp/pet-sprite/hunger-fill 等）
- *   - 4大模块的 DOM 通过 JS 动态创建，使用全新 id（companion-xxx/mirror-xxx/record-xxx/profile-xxx）
- *   - 所有数据操作通过 C 的 GameLogic / Storage 全局对象，绝不直接操作 localStorage
- *   - 专注星相关字段（stars/dailyStars/focusBlocks 等）由 C 维护，B 只读写不直接计算
+ * 其余逻辑与 app.js 完全一致
  */
 
 (function () {
@@ -59,17 +44,14 @@
     // ===== [B] 状态变量 =====
     let gameState = null;
     let tickInterval = null;
-    const TICK_INTERVAL_MS = 5 * 60 * 1000; // 5分钟衰减一次（C 的 tick）
+    // 【100倍速】3秒 = 5分钟 * 60 * 1000 / 100
+    const TICK_INTERVAL_MS = 3000;
 
     // ===== [B] 模块1-4 内部运行变量 =====
     let focusSeconds = 0;              // 本次共学累计秒数（用于模块1时长显示）
     let breatheTimer = null;
     let breatheRemaining = 0;
     let lastFidgetWarn = 0;
-
-    // ===== [B] 手动专注模式（用户主动点击开始/结束） =====
-    let manualFocusStart = 0;          // 手动专注开始时间戳，0=未开始
-    let manualFocusTimerId = null;     // 手动专注计时器 interval id
 
     // 深呼吸启动动作时长
     const BREATHE_SECONDS = 60;
@@ -81,6 +63,10 @@
         focusUpperLimit: 0,  // 发现的专注上限（分钟）
         weekdayStats: {}     // 周X统计 {0:{focusMin:0,count:0}...}
     };
+
+    // ===== [B] 手动专注模式（用户主动点击开始/结束） =====
+    let manualFocusStart = 0;          // 手动专注开始时间戳，0=未开始
+    let manualFocusTimerId = null;     // 手动专注计时器 interval id
 
     /* ============================================================
      * [B] 渲染 UI（读取 C 提供的数据，更新 A 定义的 DOM）
@@ -249,14 +235,20 @@
     // ===== [B+C] 定时衰减（调用 C 的 GameLogic.tick + tickFocus）=====
     function doTick() {
         if (!gameState) return;
-        gameState = GameLogic.tick(gameState, 5);
+        // 【100倍速】每次 tick 模拟 500 分钟（5 × 100）
+        gameState = GameLogic.tick(gameState, 500);
 
-        // 专注区块计时（warningAB.md 第1点）：若专注中，每5分钟累加1个区块
+        // 【100倍速】专注区块也按比例加速：500分钟 ÷ 5分钟/块 = 100块
+        // 每次 tickFocus 加1块，满24块自动触发 leaveFocus 结算
         if (gameState.isFocused) {
-            const focusResult = GameLogic.tickFocus(gameState);
-            gameState = focusResult.state;
-            if (focusResult.message) {
-                showMessage(focusResult.message);
+            const BLOCKS_PER_TICK = 100; // 500 / 5
+            for (let i = 0; i < BLOCKS_PER_TICK; i++) {
+                const focusResult = GameLogic.tickFocus(gameState);
+                gameState = focusResult.state;
+                if (focusResult.message) {
+                    showMessage(focusResult.message);
+                }
+                if (!gameState.isFocused) break; // 已结算，跳出循环
             }
         }
 
@@ -322,55 +314,40 @@
         if (!btn || !gameState) return;
 
         if (manualFocusStart === 0) {
-            // 开始手动专注
             manualFocusStart = Date.now();
             btn.textContent = '⏹ 结束专注';
             btn.style.background = '#e8f5e9';
             btn.style.color = '#2e7d32';
-
             $('manual-focus-row').style.display = 'block';
             updateManualFocusTimer();
-
             manualFocusTimerId = setInterval(updateManualFocusTimer, 1000);
-
             gameState = GameLogic.enterFocus(gameState);
             showMessage('🧘 已进入专注模式，加油！');
             render();
             saveGameState();
         } else {
-            // 结束手动专注
             stopManualFocusTimer();
-
             const elapsedMs = Date.now() - manualFocusStart;
             const elapsedMin = Math.floor(elapsedMs / 60000);
-            // 每5分钟 = 1个专注区块
             const blocks = Math.min(24, Math.floor(elapsedMin / 5));
-
             // 即使不足5分钟也记录为一次专注（无专注星）
             gameState.focusBlocks = blocks;
             const result = GameLogic.leaveFocus(gameState);
             gameState = result.state;
-
             // 始终记录本次专注（无论是否有星）
             recordSession(blocks, elapsedMin);
             gameState = GameLogic.recordSession(gameState, {
-                focusTime: Math.max(1, elapsedMin),
-                mood: 'neutral',
-                interruptions: 0,
-                focusBlocks: blocks,
-                starsEarned: result.starsEarned
+                focusTime: Math.max(1, elapsedMin), mood: 'neutral', interruptions: 0,
+                focusBlocks: blocks, starsEarned: result.starsEarned
             });
             showMoodRecord();
-
             if (result.message) showMessage(result.message);
-
             manualFocusStart = 0;
             btn.textContent = '🧘 开始专注';
             btn.style.background = '';
             btn.style.color = '';
             $('manual-focus-row').style.display = 'none';
             $('manual-focus-timer').textContent = '00:00';
-
             render();
             saveGameState();
         }
@@ -855,9 +832,16 @@
     }
 
     /* ============================================================
-     * [B] 初始化
+     * [B] 初始化（添加速度指示器）
      * ============================================================ */
     function init() {
+        // 添加100倍速测试指示器
+        const speedBadge = document.createElement('div');
+        speedBadge.id = 'speed-badge';
+        speedBadge.style.cssText = 'position:fixed;top:0;right:0;z-index:9999;background:#e53935;color:#fff;font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:0 0 0 10px;letter-spacing:0.5px;';
+        speedBadge.textContent = '100x 测试模式';
+        document.body.appendChild(speedBadge);
+
         // 尝试加载存档（通过 C 的 Storage 接口）
         const hasOffline = applyOfflineProgress();
 
@@ -954,7 +938,7 @@
         // 演化检查（模块4）
         checkEvolution();
 
-        console.log('茸学伴 已启动 — 专注星系统 + 共场陪伴 + 状态镜像 + 状态记录 + 长期演化');
+        console.log('【100倍速测试版】茸学伴 已启动 — 专注星系统 + 共场陪伴 + 状态镜像 + 状态记录 + 长期演化');
     }
 
     // ===== [B] 页面关闭时保存（通过 C 的 Storage 接口）=====

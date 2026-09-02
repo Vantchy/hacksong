@@ -595,6 +595,37 @@ header .action-group-title {
     margin-top: 10px;
 }
 
+/* 意图输入行 */
+.intention-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    align-items: center;
+}
+
+.intention-row input {
+    flex: 1;
+    font-size: 0.78rem;
+    padding: 6px 10px;
+    border: 2px solid rgba(107, 62, 38, 0.25);
+    border-radius: 10px;
+    outline: none;
+    background: rgba(255, 255, 255, 0.92);
+    font-family: inherit;
+    font-weight: 600;
+    color: #5d4037;
+}
+
+.intention-row input:focus {
+    border-color: #ffa726;
+}
+
+.intention-row .action-btn {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    flex-shrink: 0;
+}
+
 .action-group-title small {
     font-weight: normal;
     color: #bcaaa4;
@@ -655,8 +686,19 @@ header .action-group-title {
     background: #d0ecd4;
 }
 
-/* 点数互动按钮：金色系 */
+/* 点数互动按钮：金色系（独立使用，不含 .action-btn 时也具备基础样式） */
 .action-btn-star {
+    padding: 9px 4px;
+    border: 2.5px solid rgba(107, 62, 38, 0.3);
+    border-radius: 14px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1.25;
+    cursor: pointer;
+    box-shadow: 0 3px 0 rgba(107, 62, 38, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    user-select: none;
+    white-space: nowrap;
     background: #fff6de;
     color: #7a4f2d;
 }
@@ -754,6 +796,20 @@ header .action-group-title {
 #happiness-fill { background: linear-gradient(90deg, #ffd54f, #ffca28); }
 #energy-fill    { background: linear-gradient(90deg, #64b5f6, #42a5f5); }
 #hygiene-fill   { background: linear-gradient(90deg, #81c784, #66bb6a); }
+
+/* 亲密度进度条：粉色系，不同于其他属性 */
+#affection-fill  { background: linear-gradient(90deg, #f48fb1, #ec407a); }
+
+/* 亲密度阶段文字 */
+.stat-stage {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #8d6e63;
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(255, 253, 248, 0.85);
+    margin-left: 2px;
+}
 
 /* ============================================================
  * B 动态创建的模块面板（companion / mirror / record / profile）

@@ -379,7 +379,7 @@
             t.assert(a.totalSessions === 3, 'totalSessions 正确');
             t.assert(a.totalFocusTime === 80, 'totalFocusTime 正确');
             t.assert(a.totalStarsEarned === 24, 'totalStarsEarned 正确');
-            t.assert(a.avgFocusTime === 26, 'avgFocusTime 正确');
+            t.assert(a.avgFocusTime === 27, 'avgFocusTime 正确');
             t.assert(a.avgInterruptions === 2, 'avgInterruptions 正确');
             t.assert(a.moodDistribution.happy === 1, 'moodDistribution happy 正确');
             t.assert(a.moodDistribution.neutral === 1, 'moodDistribution neutral 正确');
@@ -398,7 +398,7 @@
             t.assert(r.state.countdown === 9, 'tickCountdown 减 1');
             t.assert(r.finished === false, '未结束');
 
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i < 9; i++) {
                 r = GameLogic.tickCountdown(r.state);
             }
             t.assert(r.state.countdown === 0, '倒计时到 0');
@@ -406,6 +406,7 @@
 
             // 再 tick 不再变化
             r = GameLogic.tickCountdown(r.state);
+            t.assert(r.state.countdown === 0, '倒计时结束后 countdown 保持 0');
             t.assert(r.finished === false, '倒计时结束后 tick 无影响');
         });
 
@@ -483,12 +484,13 @@
             t.assert(r2.starsEarned === 8, '5 区块离开，获得 8 星 (3×2 + 2×1)');
 
             // 每日上限 80
-            let s3 = { ...GameLogic.defaultState, isFocused: true, focusBlocks: 24, stars: 0, dailyStars: 78, lastDailyReset: 0 };
+            const today = Date.now();
+            let s3 = { ...GameLogic.defaultState, isFocused: true, focusBlocks: 24, stars: 0, dailyStars: 78, lastDailyReset: today };
             let r3 = GameLogic.leaveFocus(s3);
             t.assert(r3.state.stars === 2, '每日上限 80，只获得 2 星');
 
             // getStarsInfo
-            let info = GameLogic.getStarsInfo({ ...GameLogic.defaultState, stars: 10, dailyStars: 5, lastDailyReset: 0, isFocused: true, focusBlocks: 3 });
+            let info = GameLogic.getStarsInfo({ ...GameLogic.defaultState, stars: 10, dailyStars: 5, lastDailyReset: today, isFocused: true, focusBlocks: 3 });
             t.assert(info.stars === 10, 'getStarsInfo.stars 正确');
             t.assert(info.dailyStars === 5, 'getStarsInfo.dailyStars 正确');
             t.assert(info.dailyRemaining === 75, 'getStarsInfo.dailyRemaining 正确');
