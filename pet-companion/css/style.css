@@ -539,8 +539,7 @@ header {
 .message-bubble {
     position: absolute;
     top: -48px;
-    left: 0;
-    transform: none;
+    left: -12px;
     width: max-content;
     max-width: 300px;
     padding: 9px 16px;
@@ -560,7 +559,8 @@ header {
     content: '';
     position: absolute;
     bottom: -9px;
-    right: 28px;
+    left: auto;
+    right: 36px;
     transform: none;
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
