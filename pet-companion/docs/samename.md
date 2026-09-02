@@ -94,6 +94,7 @@
 | `.action-btn-icon` | ~~图标式按钮修饰（竖排大图标）~~ **已废弃删除**（2026-09-02，A 决策：底部栏按钮改回文字式，仅保留消耗标注内 `.mini-star`） |
 | `.btn-fish` / `.btn-bubbles` / `.btn-hand` / `.btn-hands` / `.btn-heart` / `.btn-bolt` | ~~按钮内纯 CSS 大图标~~ **已废弃删除**（2026-09-02，同上，随 `.action-btn-icon` 一并移除） |
 | `.action-grid-lower` | 点数互动第三行（额外抚摸/快速充电）：列宽自适应内容，与上两行不对齐（2026-09-02 新增） |
+| `.room-star` / `.s1` `.s2` | 墙面小星星贴纸：移动端专属装饰（桌面 `display:none`），纯 CSS 五角星 + 闪烁动画（2026-09-02 新增） |
 
 ---
 

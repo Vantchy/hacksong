@@ -342,6 +342,25 @@ body {
 .leaf-2 { transform: translateX(-50%) rotate(0deg) translateY(-10px); height: 72px; }
 .leaf-3 { transform: translateX(-50%) rotate(26deg); }
 
+/* ---- 墙面小星星贴纸（移动端专属装饰，桌面隐藏） ---- */
+.room-star {
+    display: none;
+    position: absolute;
+    background: #ffd54f;
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    opacity: 0.85;
+    z-index: 1;
+    animation: starTwinkle 2.8s ease-in-out infinite;
+}
+
+.room-star.s1 { width: 24px; height: 24px; }
+.room-star.s2 { width: 16px; height: 16px; animation-delay: 1.2s; }
+
+@keyframes starTwinkle {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+    50%      { transform: scale(0.78) rotate(18deg); opacity: 0.55; }
+}
+
 /* ============================================================
  * UI 面板（无大框，直接浮在房间之上，靠文字投影保证可读）
  * ============================================================ */
@@ -867,23 +886,47 @@ header .action-group-title {
  * 响应式
  * ============================================================ */
 @media (max-width: 960px) {
-    .room-frame, .room-clock, .room-plant {
-        display: none;
+    /* 时钟保持隐藏（右侧有专注星面板+窗户，空间挤） */
+    .room-clock { display: none; }
+
+    /* 波点墙纸：移动端墙面装饰基底 */
+    .room-wall {
+        background:
+            radial-gradient(circle, rgba(255, 171, 145, 0.35) 6px, transparent 7px),
+            radial-gradient(circle, rgba(255, 213, 79, 0.3) 4px, transparent 5px),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 45%),
+            repeating-linear-gradient(90deg, #fdf1e3 0 70px, #fbe6d2 70px 140px);
+        background-size: 88px 88px, 88px 88px, auto, auto;
+        background-position: 0 0, 44px 44px, 0 0, 0 0;
+    }
+
+    /* 挂画缩小恢复（避开左上属性面板） */
+    .room-frame {
+        left: 4%;
+        top: 38%;
+        transform: rotate(-4deg) scale(0.72);
+    }
+
+    /* 盆栽缩小恢复（右下按钮组上方） */
+    .room-plant {
+        right: 4%;
+        bottom: 42%;
+        transform: scale(0.8);
     }
 
     .room-window {
-        width: 230px;
-        height: 176px;
-        top: 17vh;
+        width: 280px;
+        height: 212px;
+        top: 24vh;
     }
 
     .curtain {
-        width: 38px;
-        height: 146px;
+        width: 44px;
+        height: 178px;
     }
 
-    .cloud-1 { top: 40px; }
-    .cloud-2 { top: 96px; }
+    .cloud-1 { top: 44px; }
+    .cloud-2 { top: 112px; }
 
     header { width: 268px; }
 
@@ -891,12 +934,74 @@ header .action-group-title {
 
     #star-panel { width: 172px; }
 
+    /* 宠物中心对齐墙/地板分界线（38%），猫高 240px --cs:1 */
+    #pet-area { bottom: calc(38% - 120px); }
+    .room-rug { bottom: calc(38% - 172px); }
+
     #companion-panel, #profile-summary { width: 214px; }
     #profile-summary { bottom: 178px; }
 }
 
 @media (max-width: 620px) {
-    .room-window { display: none; }
+    /* 小窗：挂在墙上（底边离开踢脚线白线一段距离），宠物挡住下半 */
+    .room-window {
+        width: 220px;
+        height: 148px;
+        left: 50%;
+        top: auto;
+        bottom: calc(38% + 44px);
+        border-width: 9px;
+        border-radius: 14px;
+    }
+
+    .window-sun {
+        width: 40px;
+        height: 40px;
+        right: 18px;
+        top: 16px;
+    }
+
+    .window-cloud { width: 36px; height: 13px; }
+    .window-cloud::before { width: 17px; height: 17px; left: 5px; top: -8px; }
+    .window-cloud::after  { width: 12px; height: 12px; right: 6px; top: -4px; }
+    .cloud-1 { left: -50px; top: 26px; }
+    .cloud-2 { left: -100px; top: 78px; transform: scale(0.75); }
+
+    .curtain {
+        width: 26px;
+        height: 98px;
+        top: -6px;
+    }
+    .curtain-l { left: -6px; }
+    .curtain-r { right: -6px; }
+
+    /* 挂画进一步缩小（属性面板下方左墙） */
+    .room-frame {
+        left: 6%;
+        top: 33%;
+        transform: rotate(-4deg) scale(0.6);
+    }
+
+    /* 盆栽移到左下角（companion 面板隐藏后的空位） */
+    .room-plant {
+        left: 10px;
+        right: auto;
+        bottom: 10px;
+        transform: scale(0.72);
+    }
+
+    /* 星星贴纸显示（右上空旷墙面，避开小窗） */
+    .room-star { display: block; }
+    .room-star.s1 { right: 9%; top: 21%; }
+    .room-star.s2 { right: 38%; top: 11%; }
+
+    /* 宠物中心对齐墙/地板分界线（38%），猫高 240px --cs:0.8 → 半高 96px */
+    #pet-area { bottom: calc(38% - 96px); }
+    .room-rug {
+        bottom: calc(38% - 139px);
+        width: min(300px, 74vw);
+        height: 86px;
+    }
 
     /* 顶部三卡改为：属性左上 / 专注星右上 / 信息卡下移 */
     header {
@@ -924,7 +1029,7 @@ header .action-group-title {
     /* 小屏隐藏 B 的两个常驻小面板，避免与底栏挤在一起 */
     #companion-panel, #profile-summary { display: none; }
 
-    #record-panel { bottom: 188px; }
+    #record-panel { bottom: 210px; }
 
     #pet-sprite { --cs: 0.8; }
 
@@ -936,8 +1041,32 @@ header .action-group-title {
 
 /* ---- 手机端（480px 以下）---- */
 @media (max-width: 480px) {
-    /* 隐藏剩余装饰 */
-    .room-rug { display: none; }
+    /* 装饰进一步缩小（保留画面丰富度） */
+    .room-frame {
+        top: 36%;
+        transform: rotate(-4deg) scale(0.5);
+    }
+    .room-plant { transform: scale(0.6); }
+    .room-star.s1 { right: 11%; top: 24%; }
+    .room-star.s2 { right: 42%; top: 13%; }
+    .room-window {
+        width: 190px;
+        height: 126px;
+        top: auto;
+        bottom: calc(38% + 40px);
+    }
+    .window-sun {
+        width: 34px;
+        height: 34px;
+        right: 14px;
+        top: 12px;
+    }
+    .curtain { height: 82px; }
+    .room-rug {
+        bottom: calc(38% - 102px);
+        width: min(240px, 76vw);
+        height: 72px;
+    }
 
     /* 隐藏 B 的常驻小面板，避免遮挡 */
     #companion-panel, #profile-summary { display: none; }
@@ -953,7 +1082,7 @@ header .action-group-title {
     #record-panel {
         width: 92vw !important;
         left: 50%;
-        bottom: 200px;
+        bottom: 230px;
         transform: translateX(-50%);
     }
 
@@ -1029,9 +1158,9 @@ header .action-group-title {
     .action-group-title { font-size: 0.65rem; margin-bottom: 5px; }
     header .action-group-title { margin-top: 6px; }
 
-    /* 宠物缩小 */
+    /* 宠物缩小 + 中心对齐分界线（38%），猫高 240px --cs:0.55 → 半高 66px */
     #pet-sprite { --cs: 0.55; }
-    #pet-area { bottom: 10%; }
+    #pet-area { bottom: calc(38% - 66px); }
     #pet-area::after {
         width: 100px;
         height: 16px;
@@ -1078,7 +1207,19 @@ header .action-group-title {
 /* ---- 极小屏（380px 以下）---- */
 @media (max-width: 380px) {
     #pet-sprite { --cs: 0.45; }
-    #pet-area { bottom: 8%; }
+    #pet-area { bottom: calc(38% - 54px); }
+    .room-rug {
+        bottom: calc(38% - 86px);
+        width: min(210px, 78vw);
+        height: 64px;
+    }
+    .room-window {
+        width: 165px;
+        height: 112px;
+        top: auto;
+        bottom: calc(38% + 36px);
+    }
+    .curtain { height: 72px; }
 
     #stats-panel { width: 42vw; max-width: 130px; }
     #star-panel { width: 38vw; max-width: 105px; }
