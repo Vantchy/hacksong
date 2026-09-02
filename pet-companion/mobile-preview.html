@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>移动端预览 · 宠物伙伴</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            gap: 16px;
+        }
+        h1 {
+            color: #fff;
+            font-size: 1.3rem;
+            font-weight: 600;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .phone-frame {
+            width: 395px;
+            height: 820px;
+            background: #1a1a1a;
+            border-radius: 42px;
+            padding: 12px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.4), inset 0 0 0 2px #333;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .phone-notch {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 28px;
+            background: #1a1a1a;
+            border-radius: 0 0 18px 18px;
+            z-index: 10;
+        }
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            border-radius: 32px;
+            overflow: hidden;
+            background: #fff;
+            position: relative;
+        }
+        .phone-screen iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        .size-label {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        .device-switch {
+            display: flex;
+            gap: 8px;
+        }
+        .device-btn {
+            padding: 8px 16px;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 20px;
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            font-size: 0.8rem;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+        .device-btn.active {
+            background: #fff;
+            color: #667eea;
+            border-color: #fff;
+        }
+        .device-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .device-btn.active:hover {
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>📱 移动端预览</h1>
+    <div class="device-switch">
+        <button class="device-btn active" onclick="setSize(395, 820, 375)">iPhone 12/13/14 (375px)</button>
+        <button class="device-btn" onclick="setSize(446, 926, 428)">iPhone 14 Pro Max (428px)</button>
+        <button class="device-btn" onclick="setSize(380, 780, 360)">小屏安卓 (360px)</button>
+        <button class="device-btn" onclick="setSize(340, 720, 320)">极小屏 (320px)</button>
+    </div>
+    <div class="phone-frame" id="frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+            <iframe src="index.html" id="preview-frame"></iframe>
+        </div>
+    </div>
+    <div class="size-label" id="size-label">视口宽度: 375px · iPhone 12/13/14</div>
+
+    <script>
+        function setSize(frameW, frameH, viewportW) {
+            const frame = document.getElementById('frame');
+            frame.style.width = frameW + 'px';
+            frame.style.height = frameH + 'px';
+            // 通过给 iframe 设置 CSS transform scale 模拟不同宽度
+            // 实际上 iframe 内部还是根据自身宽度响应，所以需要调整 iframe 宽度
+            // 这里我们直接调整 phone-screen 内的 iframe 宽度
+            const screen = frame.querySelector('.phone-screen');
+            screen.style.width = '100%';
+            screen.style.height = '100%';
+
+            document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const labels = {
+                375: '视口宽度: 375px · iPhone 12/13/14',
+                428: '视口宽度: 428px · iPhone 14 Pro Max',
+                360: '视口宽度: 360px · 小屏安卓',
+                320: '视口宽度: 320px · 极小屏 (SE/5s)'
+            };
+            document.getElementById('size-label').textContent = labels[viewportW] || '';
+
+            // 刷新 iframe 以触发响应式重排
+            const iframe = document.getElementById('preview-frame');
+            iframe.contentWindow.location.reload();
+        }
+    </script>
+</body>
+</html>
