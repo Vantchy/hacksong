@@ -48,6 +48,11 @@
 | `save-btn` | 保存按钮 | 存档区 |
 | `load-btn` | 读档按钮 | 存档区 |
 | `reset-btn` | 重置按钮 | 存档区 |
+| `star-count` | 专注星总数 | 专注星面板 |
+| `daily-star-count` | 当日已获专注星 | 专注星面板 |
+| `daily-star-remaining` | 当日剩余可获专注星 | 专注星面板 |
+| `focus-block-count` | 当前专注时段区块数（0-24） | 专注星面板 |
+| `affection-value` | 亲密度数值 | 属性面板 |
 
 ---
 
@@ -68,7 +73,27 @@
 | `.pet-normal` | 宠物正常状态动画 | B 在 JS 中通过 `classList.add/remove` 切换 |
 | `.pet-happy` | 宠物快乐动画 | 同上 |
 | `.pet-sleeping` | 宠物睡眠动画 | 同上 |
-| `.pet-sick` | 宠物生病动画 | 同上 |
+| `.pet-sick` | ~~宠物生病动画~~ **已废弃删除**（2026-09-02，随 health 系统移除，B 不再使用） |
+
+### A 专属装饰 class（2026-09-02 新增，B/C 无需引用）
+
+> 背景：按 A 的 UI 决策，全站去 emoji，原有 emoji 一律改为纯 CSS 图形；面板大框已取消。以下 class 仅 A 的 HTML/CSS 内部使用。
+
+| 类名 | 用途 |
+|------|------|
+| `.stat-dot` / `.dot-hunger` 等 | ~~属性标签前的彩色圆点~~ **已废弃删除**（2026-09-02，A 决策：属性标签不加图案，纯文字） |
+| `.paw-print` / `.paw-pad` / `.paw-toe` / `.t1` `.t2` `.t3` | 挂画内的纯 CSS 爪印（替代原 🐾） |
+| `.star-icon`（保留原名，内容清空） | 专注星面板的大星星，改为 clip-path 五角星 |
+| `.mini-star` | 点数按钮消耗标注 `​.star-cost` 内的小星星（替代原 ⭐） |
+| `.cat-hearts`（含空 `span`×3） | 抚摸特效：纯 CSS 心形（方块 + 双圆伪元素，替代原 ❤️） |
+| `.cat-zzz`（含空 `span`×3） | 睡眠特效：纯 CSS Z 字气泡（替代原 💤） |
+| `.cat-spark` | 快速充电特效：纯 CSS 闪电（clip-path，替代原 ⚡） |
+| `.cat-bubbles`（含空 `span`×5） | 洗澡特效：纯 CSS 气泡（替代原 🫧） |
+| `.cat-blush` / `.cat-blush-l` / `.cat-blush-r` | 猫咪腮红（抚摸时显现） |
+| `.cat-anim-pet` / `-greet` / `-highfive` / `-cheer` / `-feed` / `-clean` / `-sleep` | 动作触发临时 class（`triggerActionAnim()` 添加，动画结束自动移除） |
+| `.action-btn-icon` | ~~图标式按钮修饰（竖排大图标）~~ **已废弃删除**（2026-09-02，A 决策：底部栏按钮改回文字式，仅保留消耗标注内 `.mini-star`） |
+| `.btn-fish` / `.btn-bubbles` / `.btn-hand` / `.btn-hands` / `.btn-heart` / `.btn-bolt` | ~~按钮内纯 CSS 大图标~~ **已废弃删除**（2026-09-02，同上，随 `.action-btn-icon` 一并移除） |
+| `.action-grid-lower` | 点数互动第三行（额外抚摸/快速充电）：列宽自适应内容，与上两行不对齐（2026-09-02 新增） |
 
 ---
 
@@ -76,10 +101,10 @@
 
 | 动画名 | 触发时机 | 对应类名 |
 |--------|----------|----------|
-| `idleBounce` | 正常待机 | `.pet-normal` |
-| `happyJump` | 操作后快乐 | `.pet-happy` |
-| `sleepFloat` | 睡眠中 | `.pet-sleeping` |
-| `sickShake` | 生病状态 | `.pet-sick` |
+| `idleBounce`（pet.css 内现为 `catIdle`） | 正常待机 | `.pet-normal` |
+| `happyJump`（pet.css 内现为 `catHappy`） | 操作后快乐 | `.pet-happy` |
+| `sleepFloat`（pet.css 内现为 `catSleep`） | 睡眠中 | `.pet-sleeping` |
+| `sickShake` | ~~生病状态~~ **已废弃删除**（随 `.pet-sick` 移除） |
 
 ---
 

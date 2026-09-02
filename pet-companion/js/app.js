@@ -20,7 +20,7 @@
  *
  * 契约遵守：
  *   - 仅引用 A 定义的 HTML id（level/xp/pet-sprite/hunger-fill 等）
- *   - 4大模块的 DOM 通过 JS 动态创建，使用全新 id（companion-*/mirror-*/record-*/profile-*）
+ *   - 4大模块的 DOM 通过 JS 动态创建，使用全新 id（companion-xxx/mirror-xxx/record-xxx/profile-xxx）
  *   - 所有数据操作通过 C 的 GameLogic / Storage 全局对象，绝不直接操作 localStorage
  *   - 专注星相关字段（stars/dailyStars/focusBlocks 等）由 C 维护，B 只读写不直接计算
  */
@@ -111,7 +111,7 @@
         el.xpNext.textContent = xpNeeded;
         el.xpFill.style.width = Math.min(100, (s.xp / xpNeeded) * 100) + '%';
         el.age.textContent = s.age;
-        el.petName.textContent = '🐾 ' + s.name;
+        el.petName.textContent = s.name;
 
         // 属性条（health 已移除，只渲染4项）
         el.hunger.fill.style.width    = s.hunger + '%';
@@ -138,40 +138,64 @@
         renderStarsInfo();
     }
 
-    // ===== [B] 更新宠物外观（移除 .pet-sick，health 已废弃）=====
+    // ===== [B] 更新宠物外观（CSS猫咪 + 状态class，移除 emoji textContent 和 .pet-sick）=====
     function updatePetAppearance(s) {
         const sprite = el.petSprite;
-        sprite.className = '';
+        // 清除所有状态/动作 class（保留一次性动作 class，让动画自然结束）
+        const baseClasses = ['pet-normal','pet-happy','pet-sleeping','pet-sick',
+                             'pet-newbie','pet-familiar','pet-intimate','pet-bestie','pet-forever'];
+        baseClasses.forEach(c => sprite.classList.remove(c));
 
-        if (s.isFocused) {
-            // 专注中：打盹（共场陪伴·用户专注时宠物趴着）
-            sprite.textContent = '😴';
+        if (s.isFocused || s.isSleeping) {
             sprite.classList.add('pet-sleeping');
-            return;
-        }
-
-        if (s.isSleeping) {
-            sprite.textContent = '💤';
-            sprite.classList.add('pet-sleeping');
-        } else if (s.happiness > 70) {
-            sprite.textContent = '😊';
-            sprite.classList.add('pet-normal');
-        } else if (s.happiness < 30) {
-            sprite.textContent = '😢';
-            sprite.classList.add('pet-normal');
         } else {
-            sprite.textContent = '😐';
             sprite.classList.add('pet-normal');
         }
+
+        // 亲密度阶段外观（warningAB.md 第6点）
+        if (typeof GameLogic.getAffectionStage === 'function') {
+            const stage = GameLogic.getAffectionStage(s);
+            if (stage) sprite.classList.add('pet-' + stage);
+        }
+    }
+
+    // ===== [B] 触发动作动画（临时添加 cat-anim-* class，动画结束后移除）=====
+    function triggerActionAnim(actionKey) {
+        const sprite = el.petSprite;
+        const animMap = {
+            pet_free:   'cat-anim-pet',
+            pet_extra:  'cat-anim-pet',
+            greet:      'cat-anim-greet',
+            highfive:   'cat-anim-highfive',
+            cheer:      'cat-anim-cheer',
+            feed:       'cat-anim-feed',
+            clean:      'cat-anim-clean',
+            sleep:      'cat-anim-sleep'
+        };
+        const cls = animMap[actionKey];
+        if (!cls) return;
+        sprite.classList.remove(cls);
+        // 强制reflow以重启动画
+        void sprite.offsetWidth;
+        sprite.classList.add(cls);
+        const dur = actionKey === 'cheer' ? 1600 : (actionKey === 'clean' ? 1100 : (actionKey === 'feed' ? 900 : 800));
+        setTimeout(() => {
+            sprite.classList.remove(cls);
+        }, dur);
     }
 
     // ===== [B] 触发快乐动画 =====
     function triggerHappyAnimation() {
         const sprite = el.petSprite;
-        sprite.className = '';
-        sprite.textContent = '🥳';
+        sprite.classList.remove('pet-happy');
+        void sprite.offsetWidth;
         sprite.classList.add('pet-happy');
-        setTimeout(() => { if (gameState) updatePetAppearance(gameState); }, 600);
+        setTimeout(() => {
+            sprite.classList.remove('pet-happy');
+            if (gameState && !gameState.isSleeping && !gameState.isFocused) {
+                sprite.classList.add('pet-normal');
+            }
+        }, 700);
     }
 
     // ===== [B] 显示消息 =====
@@ -219,6 +243,7 @@
         render();
         showMessage(result.message);
         triggerHappyAnimation();
+        triggerActionAnim(actionKey);
         saveGameState();
     }
 
@@ -244,7 +269,7 @@
     function handleSave() {
         if (!gameState) return;
         const ok = saveGameState();
-        showMessage(ok ? '✅ 保存成功！' : '❌ 保存失败');
+        showMessage(ok ? '保存成功！' : '保存失败');
     }
 
     function handleLoad() {
@@ -254,9 +279,9 @@
             if (data._bProfile) profile = data._bProfile;
             render();
             renderProfile();
-            showMessage('📂 读档成功！');
+            showMessage('读档成功！');
         } else {
-            showMessage('❌ 没有找到存档');
+            showMessage('没有找到存档');
         }
     }
 
@@ -268,7 +293,7 @@
         freeActionUsage = { pet_free: null, greet: null };
         render();
         renderProfile();
-        showMessage('🗑️ 已重置');
+        showMessage('已重置');
     }
 
     // ===== [B] 保存状态（附加 _bProfile，通过 C 的 Storage 接口）=====
@@ -458,7 +483,7 @@
         panel.id = 'stars-panel';
         panel.style.cssText = 'margin-bottom:16px;padding:14px;background:#fff8e1;border-radius:14px;display:flex;justify-content:space-around;text-align:center;font-size:0.85rem;color:#666;';
         panel.innerHTML = `
-            <div>⭐<br><b id="star-count" style="color:#f57c00;font-size:1.3rem;">0</b><br>专注星</div>
+            <div>专注星<br><b id="star-count" style="color:#f57c00;font-size:1.3rem;">0</b><br>数量</div>
             <div>今日<br><b id="daily-star-count" style="color:#333;font-size:1.1rem;">0</b>/<span id="daily-star-remaining">80</span><br>已获/剩余</div>
             <div>专注区块<br><b id="focus-block-count" style="color:#2e7d32;font-size:1.1rem;">0</b>/24<br>当前/上限</div>
         `;
@@ -632,9 +657,9 @@
         panel.innerHTML = `
             <p style="margin:0 0 12px;font-size:0.9rem;color:#666;">本次学习结束啦，现在感觉怎么样？</p>
             <div style="display:flex;gap:14px;justify-content:center;">
-                <button class="action-btn" data-mood="happy" title="不错" style="font-size:1.8rem;padding:8px 14px;">😊</button>
-                <button class="action-btn" data-mood="neutral" title="一般" style="font-size:1.8rem;padding:8px 14px;">😐</button>
-                <button class="action-btn" data-mood="sad" title="不太好" style="font-size:1.8rem;padding:8px 14px;">😫</button>
+                <button class="action-btn" data-mood="happy" title="不错">开心</button>
+                <button class="action-btn" data-mood="neutral" title="一般">一般</button>
+                <button class="action-btn" data-mood="sad" title="不太好">低落</button>
             </div>
         `;
         el.app.insertBefore(panel, el.app.querySelector('#stars-panel'));
@@ -653,7 +678,7 @@
         if (last) last.mood = mood;
         saveGameState();
         hideMoodRecord();
-        showMessage(mood === 'happy' ? '收到啦，记下了 😊' :
+        showMessage(mood === 'happy' ? '收到啦，记下了' :
                     mood === 'neutral' ? '嗯，记下了，辛苦了' : '抱抱，明天会好一点');
         triggerHappyAnimation();
         renderProfile();
@@ -772,10 +797,10 @@
             if (saved) {
                 gameState = saved;
                 if (saved._bProfile) profile = saved._bProfile;
-                showMessage('📂 欢迎回来！');
+                showMessage('欢迎回来！');
             } else {
                 gameState = { ...GameLogic.defaultState, createdAt: Date.now() };
-                showMessage('🎉 欢迎！你的小宠物诞生了！');
+                showMessage('欢迎！你的小宠物诞生了！');
             }
         }
 
@@ -841,7 +866,7 @@
         // 演化检查（模块4）
         checkEvolution();
 
-        console.log('🐾 茸学伴 已启动 — 专注星系统 + 共场陪伴 + 状态镜像 + 状态记录 + 长期演化');
+        console.log('茸学伴 已启动 — 专注星系统 + 共场陪伴 + 状态镜像 + 状态记录 + 长期演化');
     }
 
     // ===== [B] 页面关闭时保存（通过 C 的 Storage 接口）=====
