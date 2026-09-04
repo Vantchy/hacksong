@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电子换衣衣橱 · Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* ===== 布局参数，可按需微调 ===== */
+    --closet-left: 4vw;       /* 衣柜距屏幕左边距离 */
+    --closet-height: 72vh;    /* 衣柜高度 */
+    --person-height: 74vh;    /* 人物高度 */
+    --person-bottom: 5vh;     /* 人物距屏幕底部距离（脚的位置） */
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+
+  /* ===== 场景：背景图铺满 ===== */
+  .scene {
+    position: relative;
+    width: 100vw; height: 100vh;
+    background: url('assets/bg-bedroom.png') center / cover no-repeat;
+  }
+
+  /* ===== 衣柜：贴在偏左侧 ===== */
+  .closet {
+    position: absolute;
+    left: var(--closet-left);
+    top: 50%;
+    transform: translateY(-50%);
+    height: var(--closet-height);
+    aspect-ratio: 1 / 1;              /* closet.jpg 是正方形 */
+    filter: drop-shadow(0 18px 32px rgba(0, 0, 0, .4));
+  }
+
+  /* ===== 人物：屏幕中央，男/女切换 ===== */
+  .person-wrap {
+    position: absolute;
+    left: 50%;
+    bottom: var(--person-bottom);
+    transform: translateX(-50%);
+    height: var(--person-height);
+    aspect-ratio: 3 / 4;              /* people.jpg 半幅为 768x1024 */
+  }
+  .person {
+    position: absolute; inset: 0;
+    background-image: url('assets/people.jpg');
+    background-repeat: no-repeat;
+    background-size: 200% 100%;       /* 横向放大一倍 → 每次只显示半幅 */
+    transition: opacity .45s ease;
+  }
+  body[data-gender="male"]   .person.female { opacity: 0; }
+  body[data-gender="female"] .person.male   { opacity: 0; }
+
+  /* 脚下阴影，增加站立感 */
+  .person-wrap::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: -1.5vh;
+    transform: translateX(-50%);
+    width: 68%; height: 3vh;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, .35), transparent 70%);
+  }
+
+  /* ===== 顶部标题 ===== */
+  .title {
+    position: absolute;
+    top: 3.5vh; left: 4vw;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, .55);
+    letter-spacing: 2px;
+  }
+  .title h1 { font-size: clamp(20px, 2.6vw, 34px); font-weight: 700; }
+  .title p  { font-size: clamp(12px, 1.2vw, 16px); opacity: .85; margin-top: 4px; }
+
+  /* ===== 性别切换按钮（右上角） ===== */
+  .switch {
+    position: absolute;
+    top: 3.5vh; right: 4vw;
+    display: flex;
+    padding: 5px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .38);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, .3);
+  }
+  .switch button {
+    border: none; cursor: pointer;
+    padding: 10px 30px;
+    border-radius: 999px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, .8);
+    background: transparent;
+    transition: all .25s ease;
+  }
+  .switch button.active {
+    color: #fff;
+    background: rgba(255, 255, 255, .22);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25);
+  }
+  .switch button:not(.active):hover { color: #fff; }
+
+  /* ===== 底部提示 ===== */
+  .hint {
+    position: absolute;
+    bottom: 2.5vh; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, .6);
+    font-size: 13px;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+  }
+
+  /* ===== 小屏适配 ===== */
+  @media (max-width: 720px) {
+    :root {
+      --closet-height: 46vh;
+      --person-height: 56vh;
+      --person-bottom: 10vh;
+    }
+    .switch button { padding: 8px 20px; font-size: 14px; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body data-gender="male">
+
+<div class="scene">
+  <!-- 衣柜（偏左） -->
+  <img class="closet" src="assets/closet.jpg" alt="衣柜">
+
+  <!-- 人物（居中，男/女两层交叉淡入淡出） -->
+  <div class="person-wrap">
+    <div class="person male"></div>
+    <div class="person female"></div>
+  </div>
+
+  <!-- 标题 -->
+  <div class="title">
+    <h1>电子换衣衣橱</h1>
+    <p>Demo · 前端展示原型</p>
+  </div>
+
+  <!-- 性别切换 -->
+  <div class="switch">
+    <button data-g="male" class="active">男生</button>
+    <button data-g="female">女生</button>
+  </div>
+
+  <div class="hint">点击右上角按钮切换男生 / 女生</div>
+</div>
+
+<script>
+  // ===== 人物裁切配置 =====
+  // people.jpg 为男女同框图：默认男生取左半幅、女生取右半幅。
+  // 如果实际方向相反，改成 { male: 'right', female: 'left' } 即可。
+  const CROP = { male: 'left', female: 'right' };
+
+  document.querySelector('.person.male')
+          .style.backgroundPosition = CROP.male + ' center';
+  document.querySelector('.person.female')
+          .style.backgroundPosition = CROP.female + ' center';
+
+  // ===== 性别切换逻辑 =====
+  const buttons = document.querySelectorAll('.switch button');
+
+  function setGender(g) {
+    document.body.dataset.gender = g;
+    buttons.forEach(b => b.classList.toggle('active', b.dataset.g === g));
+  }
+
+  buttons.forEach(b => b.addEventListener('click', () => setGender(b.dataset.g)));
+
+  setGender('male'); // 默认显示男生
+</script>
+</body>
+</html>
