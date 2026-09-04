@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电子衣橱 · Demo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- 顶部状态栏 -->
+  <header class="top-bar">
+    <div class="level-info">
+      <span class="level-badge">Lv.12</span>
+      <div class="exp-bar"><div class="exp-fill"></div></div>
+      <span class="exp-text">EXP 340/500</span>
+    </div>
+    <h1 class="app-title">我的衣橱</h1>
+    <div class="top-actions">
+      <div class="gender-toggle" id="genderToggle" role="tablist" aria-label="性别切换">
+        <button class="gender-opt active" data-gender="female" role="tab" aria-selected="true">♀</button>
+        <button class="gender-opt" data-gender="male" role="tab" aria-selected="false">♂</button>
+      </div>
+      <span class="stat">★ 28</span>
+      <span class="stat">🪙 1,280</span>
+    </div>
+  </header>
+
+  <!-- 房间场景（使用背景图） -->
+  <main class="room-scene" id="roomScene">
+
+    <!-- 左上角 OOTD 卡片 -->
+    <div class="ootd-card">
+      <div class="ootd-title">📸 今日穿搭</div>
+      <div class="ootd-row"><span class="ootd-label">上衣</span><span class="ootd-val" id="ootdTop">—</span></div>
+      <div class="ootd-row"><span class="ootd-label">下装</span><span class="ootd-val" id="ootdBottom">—</span></div>
+      <div class="ootd-row"><span class="ootd-label">鞋子</span><span class="ootd-val" id="ootdShoes">—</span></div>
+      <div class="ootd-row"><span class="ootd-label">配饰</span><span class="ootd-val" id="ootdAcc">—</span></div>
+      <div class="ootd-foot">
+        <span>👗 衣橱 <b id="totalCount">0</b> 件</span>
+        <span>✨ 已穿 <b id="wearingCount">0</b> 件</span>
+      </div>
+    </div>
+
+    <!-- 衣柜（左侧，CSS占位，等贴图替换） -->
+    <div class="wardrobe wardrobe-female" id="wardrobe" role="button" tabindex="0" aria-label="打开衣橱">
+      <div class="wardrobe-body">
+        <div class="wardrobe-inside wardrobe-hang">
+          <div class="hanger-bar"></div>
+          <div class="hang-clothes c-hang-1"></div>
+          <div class="hang-clothes c-hang-2"></div>
+          <div class="hang-clothes c-hang-3"></div>
+        </div>
+        <div class="wardrobe-inside wardrobe-fold">
+          <div class="fold-stack"><div class="fold-item"></div><div class="fold-item"></div><div class="fold-item"></div></div>
+        </div>
+        <div class="wardrobe-door door-left">
+          <div class="door-knob"></div>
+        </div>
+        <div class="wardrobe-door door-right">
+          <div class="door-knob"></div>
+        </div>
+      </div>
+      <div class="wardrobe-label">🚪 衣橱</div>
+    </div>
+
+    <!-- 中央人物区（站在地毯位置） -->
+    <div class="stage" id="stage">
+      <div class="pet-carpet"></div>
+
+      <!-- 女性角色 -->
+      <div class="character character-female floating" id="charFemale">
+        <div class="char-hair"></div>
+        <div class="char-hair-bangs"></div>
+        <div class="char-hair-side-l"></div>
+        <div class="char-hair-side-r"></div>
+        <div class="char-head">
+          <div class="cheek cheek-l"></div>
+          <div class="cheek cheek-r"></div>
+          <div class="eye eye-l"></div>
+          <div class="eye eye-r"></div>
+          <div class="mouth"></div>
+        </div>
+        <div class="char-neck"></div>
+        <div class="char-torso"></div>
+        <div class="char-arm arm-l"></div>
+        <div class="char-arm arm-r"></div>
+        <div class="underwear-top-f">
+          <div class="strap strap-l"></div>
+          <div class="strap strap-r"></div>
+        </div>
+        <div class="underwear-bot-f"></div>
+        <div class="char-leg leg-l"></div>
+        <div class="char-leg leg-r"></div>
+        <div class="char-foot foot-l"></div>
+        <div class="char-foot foot-r"></div>
+        <div class="layer layer-top" id="layer-top-f"></div>
+        <div class="layer layer-bottom" id="layer-bottom-f"></div>
+        <div class="layer layer-shoes" id="layer-shoes-f"></div>
+        <div class="layer layer-accessory" id="layer-accessory-f"></div>
+      </div>
+
+      <!-- 男性角色（默认隐藏） -->
+      <div class="character character-male" id="charMale" style="display:none;">
+        <div class="char-hair-m"></div>
+        <div class="char-head">
+          <div class="cheek cheek-l"></div>
+          <div class="cheek cheek-r"></div>
+          <div class="eye eye-l"></div>
+          <div class="eye eye-r"></div>
+          <div class="mouth"></div>
+        </div>
+        <div class="char-neck"></div>
+        <div class="char-torso torso-m"></div>
+        <div class="char-arm arm-l"></div>
+        <div class="char-arm arm-r"></div>
+        <div class="underwear-bot-m"></div>
+        <div class="char-leg leg-l"></div>
+        <div class="char-leg leg-r"></div>
+        <div class="char-foot foot-l"></div>
+        <div class="char-foot foot-r"></div>
+        <div class="layer layer-top" id="layer-top-m"></div>
+        <div class="layer layer-bottom" id="layer-bottom-m"></div>
+        <div class="layer layer-shoes" id="layer-shoes-m"></div>
+        <div class="layer layer-accessory" id="layer-accessory-m"></div>
+      </div>
+
+      <!-- 对话气泡 -->
+      <div class="bubble" id="bubble">点左边衣柜，开始搭配今天的穿搭吧～</div>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="action-bar">
+      <button class="btn-mint" id="btnRandom">🎲 随机搭配</button>
+      <button class="btn-capsule" id="btnReset">↺ 重置</button>
+      <button class="btn-mint" id="btnSave">💾 保存 OOTD</button>
+    </div>
+
+  </main>
+
+  <!-- 衣橱面板弹窗 -->
+  <div class="closet-overlay" id="closetOverlay">
+    <div class="closet-panel" role="dialog" aria-label="我的衣橱">
+      <div class="closet-header">
+        <h2>🗂️ 我的衣橱</h2>
+        <button class="closet-close" id="closetClose" aria-label="关闭">×</button>
+      </div>
+      <div class="closet-tabs" id="closetTabs" role="tablist">
+        <button class="tab active" data-cat="top" role="tab">上衣</button>
+        <button class="tab" data-cat="bottom" role="tab">下装</button>
+        <button class="tab" data-cat="shoes" role="tab">鞋子</button>
+        <button class="tab" data-cat="accessory" role="tab">配饰</button>
+      </div>
+      <div class="closet-grid" id="closetGrid"></div>
+      <div class="closet-footer">
+        <span id="closetCount">共 0 件</span>
+        <span>点击衣物即可试穿 ✨</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

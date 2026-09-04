@@ -1,0 +1,857 @@
+/* ============================================================
+   电子衣橱 · 样式（基于真实插画背景版本）
+   ============================================================ */
+
+/* === 设计令牌 === */
+:root {
+  --color-bg: #FFF8F0;
+  --color-white: #FFFFFF;
+  --color-border: #6B4F3A;
+  --color-border-light: #C9B8A3;
+  --color-text-primary: #5A4030;
+  --color-text-secondary: #8C7460;
+  --color-yellow: #F9E3A0;
+  --color-pink: #F8C8D4;
+  --color-blue: #B8D8E8;
+  --color-mint: #C8E6D0;
+  --color-skin: #FFE0C4;
+  --color-hair-f: #6B4423;
+  --color-hair-m: #3D2B1F;
+  --color-bra: #F8A8B8;
+  --color-underwear-f: #F8B8C8;
+  --color-underwear-m: #3D5A80;
+  --shadow-sm: 2px 2px 0 rgba(107,79,58,0.12);
+  --shadow-md: 3px 3px 0 rgba(107,79,58,0.18);
+  --shadow-lg: 4px 6px 0 rgba(107,79,58,0.20);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 999px;
+  --border-base: 2px solid var(--color-border);
+  --border-thick: 3px solid var(--color-border);
+  --transition-base: 0.25s cubic-bezier(0.4,0,0.2,1);
+  --transition-bounce: 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  font-family: "PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif;
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.app {
+  width: 100%; height: 100vh;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+
+button {
+  font-family: inherit; cursor: pointer;
+  border: none; background: none;
+  color: inherit;
+}
+
+/* ============================================================
+   顶部栏
+   ============================================================ */
+.top-bar {
+  position: relative; z-index: 100;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  background: linear-gradient(180deg, #FFFBF5, #F8EFE0);
+  border-bottom: var(--border-base);
+  flex-shrink: 0;
+}
+.level-info { display: flex; align-items: center; gap: 8px; }
+.level-badge {
+  background: var(--color-yellow); border: var(--border-base);
+  border-radius: var(--radius-full); padding: 2px 10px;
+  font-weight: 700; font-size: 14px;
+}
+.exp-bar {
+  width: 140px; height: 10px;
+  background: #F0E4D0; border: var(--border-base); border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.exp-fill {
+  width: 68%; height: 100%;
+  background: linear-gradient(90deg, #8BC34A, #66BB6A);
+  border-radius: var(--radius-full);
+}
+.exp-text { font-size: 12px; color: var(--color-text-secondary); }
+.app-title {
+  font-family: "ZCOOL KuaiLe","PingFang SC",sans-serif;
+  font-size: 22px; font-weight: 700;
+  color: var(--color-text-primary);
+  position: absolute; left: 50%; transform: translateX(-50%);
+}
+.top-actions { display: flex; align-items: center; gap: 12px; }
+.stat { font-size: 15px; font-weight: 600; }
+
+/* 性别切换 */
+.gender-toggle {
+  display: flex; border: var(--border-base); border-radius: var(--radius-full);
+  overflow: hidden; background: var(--color-white);
+}
+.gender-opt {
+  width: 36px; height: 28px;
+  font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition-base);
+}
+.gender-opt.active[data-gender="female"] { background: var(--color-pink); }
+.gender-opt.active[data-gender="male"] { background: var(--color-blue); }
+.gender-opt:not(.active) { opacity: 0.5; }
+
+/* ============================================================
+   房间场景（背景图版本）
+   ============================================================ */
+.room-scene {
+  position: relative;
+  flex: 1;
+  background: url('assets/bg-bedroom.png') center center / cover no-repeat;
+  overflow: hidden;
+}
+
+/* ============================================================
+   OOTD 卡片
+   ============================================================ */
+.ootd-card {
+  position: absolute; top: 20px; left: 24px;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(4px);
+  border: var(--border-base);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-md);
+  z-index: 30;
+  min-width: 180px;
+  font-size: 13px;
+}
+.ootd-title {
+  font-family: "ZCOOL KuaiLe","PingFang SC",sans-serif;
+  font-size: 16px; font-weight: 700;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px dashed var(--color-border-light);
+}
+.ootd-row {
+  display: flex; justify-content: space-between;
+  padding: 3px 0;
+}
+.ootd-label { color: var(--color-text-secondary); }
+.ootd-val { font-weight: 600; color: var(--color-text-primary); }
+.ootd-foot {
+  margin-top: 8px; padding-top: 6px;
+  border-top: 2px dashed var(--color-border-light);
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--color-text-secondary);
+}
+.ootd-foot b { color: var(--color-text-primary); }
+
+/* ============================================================
+   衣柜（CSS 占位，等贴图替换）
+   ============================================================ */
+.wardrobe {
+  position: absolute;
+  left: 40px; bottom: 40px;
+  width: 160px; height: 420px;
+  z-index: 20;
+  cursor: pointer;
+  transition: transform var(--transition-base);
+}
+.wardrobe:hover { transform: translateY(-3px); }
+.wardrobe:focus { outline: 3px solid var(--color-blue); outline-offset: 2px; }
+
+.wardrobe-body {
+  background: #E8D4C0;
+  border: var(--border-thick);
+  border-radius: var(--radius-md) var(--radius-md) 4px 4px;
+  box-shadow: var(--shadow-md), inset 0 0 0 3px #D4BFA8;
+  position: relative;
+  width: 100%; height: 100%;
+  overflow: hidden;
+}
+/* 女款 */
+.wardrobe-female .wardrobe-body {
+  background: #F5E6DE;
+  box-shadow: var(--shadow-md), inset 0 0 0 3px #EDD4CA;
+}
+/* 男款 */
+.wardrobe-male .wardrobe-body {
+  background: #C9A878;
+  box-shadow: var(--shadow-md), inset 0 0 0 3px #B09060;
+}
+
+/* 衣柜内部 */
+.wardrobe-inside { position: absolute; inset: 0; padding: 14px 10px; }
+.wardrobe-hang { border-bottom: 2px solid rgba(107,79,58,0.15); height: 55%; }
+.wardrobe-fold { top: 55%; height: 45%; }
+.hanger-bar {
+  position: absolute; top: 14px; left: 12px; right: 12px; height: 3px;
+  background: var(--color-border); border-radius: 2px;
+}
+.hanger-bar::before, .hanger-bar::after {
+  content: ''; position: absolute; top: -6px; width: 8px; height: 8px;
+  border: 2px solid var(--color-border); border-bottom: none; border-radius: 4px 4px 0 0;
+}
+.hanger-bar::before { left: 0; }
+.hanger-bar::after { right: 0; }
+.hang-clothes {
+  position: absolute; top: 20px; width: 28px; height: 56px;
+  border: var(--border-base); border-radius: 4px 4px 8px 8px;
+}
+.c-hang-1 { left: 18px; background: #F0B8C8; }
+.c-hang-2 { left: 50%; transform: translateX(-50%); background: #C8D8E8; }
+.c-hang-3 { right: 18px; background: #D8E8C8; }
+.wardrobe-male .c-hang-1 { background: #A8C0D8; }
+.wardrobe-male .c-hang-2 { background: #D8C0A8; }
+.wardrobe-male .c-hang-3 { background: #8FA8B8; }
+.fold-stack {
+  display: flex; flex-direction: column; gap: 4px; align-items: center;
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+}
+.fold-item {
+  width: 64px; height: 20px;
+  background: #F0E0D0; border: 1.5px solid var(--color-border);
+  border-radius: 3px;
+}
+.fold-item:nth-child(2) { width: 58px; background: #E8D4C0; }
+.fold-item:nth-child(3) { width: 52px; background: #E0C8B0; }
+.wardrobe-male .fold-item { background: #B8A080; }
+.wardrobe-male .fold-item:nth-child(2) { background: #A89070; }
+.wardrobe-male .fold-item:nth-child(3) { background: #988060; }
+
+/* 柜门 */
+.wardrobe-door {
+  position: absolute; top: 0; bottom: 0; width: 50%;
+  background: inherit;
+  transition: transform 0.5s cubic-bezier(0.68,-0.25,0.27,1.25);
+  z-index: 2;
+}
+.wardrobe-female .wardrobe-door { background: linear-gradient(90deg, #EDD4CA, #F5E6DE, #EDD4CA); }
+.wardrobe-male .wardrobe-door { background: linear-gradient(90deg, #B09060, #C9A878, #B09060); }
+.door-left  { left: 0; border-right: var(--border-base); transform-origin: left center; }
+.door-right { right: 0; border-left: var(--border-base); transform-origin: right center; }
+.wardrobe.open .door-left  { transform: perspective(500px) rotateY(-70deg); }
+.wardrobe.open .door-right { transform: perspective(500px) rotateY(70deg); }
+
+.door-knob {
+  position: absolute; top: 50%; width: 10px; height: 10px;
+  background: #D4A59A; border: 2px solid var(--color-border);
+  border-radius: 50%;
+  box-shadow: inset -1px -1px 2px rgba(0,0,0,0.2);
+}
+.wardrobe-male .door-knob { background: #8B6B45; }
+.door-left .door-knob  { right: 8px; transform: translateY(-50%); }
+.door-right .door-knob { left: 8px; transform: translateY(-50%); }
+
+.wardrobe-label {
+  position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+  background: var(--color-yellow); border: var(--border-base);
+  border-radius: var(--radius-full); padding: 3px 14px;
+  font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.wardrobe-male .wardrobe-label { background: var(--color-blue); }
+
+/* ============================================================
+   中央舞台（人物站位）
+   ============================================================ */
+.stage {
+  position: absolute;
+  bottom: 0;
+  /* 背景图里白地毯大致位置：中下偏右 */
+  left: 52%;
+  transform: translateX(-50%);
+  width: 280px; height: 500px;
+  z-index: 15;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+
+/* 人物容器 */
+.character {
+  position: relative;
+  width: 140px; height: 380px;
+  z-index: 2;
+  margin-bottom: 60px;
+  transform-origin: bottom center;
+}
+.character.floating { animation: float 3s ease-in-out infinite; }
+.character.dressing { animation: dressing-shake 0.4s ease; }
+
+@keyframes float {
+  0%,100%{ transform: translateY(0); }
+  50%{ transform: translateY(-6px); }
+}
+@keyframes dressing-shake {
+  0%,100%{ transform: rotate(0); }
+  25%{ transform: rotate(-3deg); }
+  75%{ transform: rotate(3deg); }
+}
+
+/* 叠加层（衣物） */
+.layer {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  z-index: 10; pointer-events: none;
+}
+.layer-accessory { z-index: 20; }
+
+/* ---- 通用身体部件 ---- */
+.char-head {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  width: 80px; height: 82px;
+  background: var(--color-skin); border: var(--border-base);
+  border-radius: 44% 44% 42% 42%;
+  z-index: 5;
+}
+/* 眼睛 */
+.eye {
+  position: absolute; top: 34px; width: 8px; height: 10px;
+  background: var(--color-border); border-radius: 50%;
+}
+.eye-l { left: 20px; }
+.eye-r { right: 20px; }
+.eye::after {
+  content: ''; position: absolute; top: 1px; left: 2px;
+  width: 3px; height: 3px; background: var(--color-white); border-radius: 50%;
+}
+/* 腮红 */
+.cheek {
+  position: absolute; top: 48px; width: 12px; height: 8px;
+  background: #FFB8B8; border-radius: 50%; opacity: 0.7;
+}
+.cheek-l { left: 12px; }
+.cheek-r { right: 12px; }
+/* 嘴 */
+.mouth {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  width: 14px; height: 8px;
+  border: 2px solid var(--color-border); border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: #E88A8A;
+}
+/* 脖子 */
+.char-neck {
+  position: absolute; top: 132px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 18px;
+  background: var(--color-skin); border: var(--border-base);
+  border-top: none; border-radius: 0 0 6px 6px; z-index: 3;
+}
+/* 身体 */
+.char-torso {
+  position: absolute; top: 146px; left: 50%; transform: translateX(-50%);
+  width: 64px; height: 82px;
+  background: var(--color-skin); border: var(--border-base);
+  border-radius: 10px 10px 8px 8px; z-index: 2;
+}
+/* 手臂 */
+.char-arm {
+  position: absolute; top: 150px; width: 16px; height: 92px;
+  background: var(--color-skin); border: var(--border-base);
+  border-radius: 10px; z-index: 1;
+}
+.arm-l { left: 22px; transform: rotate(3deg); }
+.arm-r { right: 22px; transform: rotate(-3deg); }
+.character-male .char-arm { width: 18px; top: 148px; }
+.character-male .arm-l { left: 16px; }
+.character-male .arm-r { right: 16px; }
+.char-arm::after {
+  content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+  width: 14px; height: 12px; background: var(--color-skin);
+  border: var(--border-base); border-radius: 50%;
+}
+/* 腿 */
+.char-leg {
+  position: absolute; top: 226px; width: 20px; height: 120px;
+  background: var(--color-skin); border: var(--border-base);
+  border-radius: 8px 8px 6px 6px; z-index: 2;
+}
+.leg-l { left: 42px; }
+.leg-r { right: 42px; }
+.character-male .char-leg { width: 22px; top: 228px; }
+.character-male .leg-l { left: 38px; }
+.character-male .leg-r { right: 38px; }
+/* 脚 */
+.char-foot {
+  position: absolute; top: 342px; width: 26px; height: 12px;
+  background: var(--color-skin); border: var(--border-base);
+  border-radius: 50% 50% 40% 40%; z-index: 2;
+}
+.foot-l { left: 36px; }
+.foot-r { right: 36px; }
+
+/* ---- 女性发型 ---- */
+.char-hair {
+  position: absolute; top: 36px; left: 50%; transform: translateX(-50%);
+  width: 92px; height: 60px;
+  background: var(--color-hair-f); border: var(--border-base);
+  border-radius: 48px 48px 10px 10px; z-index: 6;
+}
+.char-hair-bangs {
+  position: absolute; top: 88px; left: 50%; transform: translateX(-50%);
+  width: 76px; height: 20px;
+  background: var(--color-hair-f);
+  border-left: var(--border-base); border-right: var(--border-base);
+  border-bottom: var(--border-base);
+  border-radius: 0 0 12px 12px; z-index: 7;
+  clip-path: polygon(0 0,100% 0,100% 100%,82% 60%,62% 100%,38% 60%,18% 100%,0 100%);
+}
+.char-hair-side-l, .char-hair-side-r {
+  position: absolute; top: 96px; width: 22px; height: 150px;
+  background: var(--color-hair-f); border: var(--border-base);
+  border-radius: 0 0 14px 14px; z-index: 4;
+}
+.char-hair-side-l { left: 22px; }
+.char-hair-side-r { right: 22px; }
+
+/* ---- 男性发型 ---- */
+.char-hair-m {
+  position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+  width: 96px; height: 48px;
+  background: var(--color-hair-m); border: var(--border-base);
+  border-radius: 50px 50px 10px 10px; z-index: 6;
+}
+.char-hair-m::after {
+  content: ''; position: absolute; bottom: -10px; left: 0; right: 0; height: 14px;
+  background: var(--color-hair-m); border: var(--border-base); border-top: none;
+  border-radius: 0 0 10px 10px;
+}
+
+/* ---- 女性内衣 ---- */
+.underwear-top-f {
+  position: absolute; top: 150px; left: 50%; transform: translateX(-50%);
+  width: 58px; height: 30px; z-index: 3;
+}
+.underwear-top-f::before, .underwear-top-f::after {
+  content: ''; position: absolute; top: 4px; width: 24px; height: 24px;
+  background: var(--color-bra); border: var(--border-base); border-radius: 50% 50% 40% 40%;
+}
+.underwear-top-f::before { left: 2px; }
+.underwear-top-f::after  { right: 2px; }
+.strap {
+  position: absolute; top: -18px; width: 3px; height: 20px;
+  background: var(--color-white); border: 1.5px solid var(--color-border);
+  border-radius: 2px;
+}
+.strap-l { left: 7px; transform: rotate(-5deg); }
+.strap-r { right: 7px; transform: rotate(5deg); }
+
+.underwear-bot-f {
+  position: absolute; top: 218px; left: 50%; transform: translateX(-50%);
+  width: 54px; height: 24px; z-index: 3;
+  background: var(--color-underwear-f);
+  border: var(--border-base);
+  border-radius: 4px 4px 16px 16px;
+}
+.underwear-bot-f::after {
+  content: '♡';
+  position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; color: var(--color-white);
+}
+
+/* ---- 男性内裤 ---- */
+.underwear-bot-m {
+  position: absolute; top: 220px; left: 50%; transform: translateX(-50%);
+  width: 62px; height: 32px; z-index: 3;
+  background: var(--color-underwear-m);
+  border: var(--border-base);
+  border-radius: 4px 4px 10px 10px;
+}
+.underwear-bot-m::before {
+  content: ''; position: absolute; top: 4px; left: 20px; width: 20px; height: 24px;
+  border: 2px solid rgba(255,255,255,0.5);
+  border-radius: 4px 4px 8px 8px;
+  border-top: none;
+}
+.underwear-bot-m::after {
+  content: ''; position: absolute; top: -2px; left: 2px; right: 2px; height: 4px;
+  background: rgba(255,255,255,0.7);
+}
+
+/* ============================================================
+   对话气泡
+   ============================================================ */
+.bubble {
+  position: absolute; bottom: 395px; left: 50%; transform: translateX(-50%);
+  background: rgba(255,255,255,0.95);
+  border: var(--border-base);
+  border-radius: var(--radius-xl); padding: 8px 18px;
+  font-size: 13px; font-weight: 500; color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm); z-index: 25; white-space: nowrap;
+  animation: bubble-in 0.4s var(--transition-bounce);
+}
+.bubble::after {
+  content: ''; position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%);
+  border-left: 9px solid transparent; border-right: 9px solid transparent;
+  border-top: 9px solid var(--color-border);
+}
+.bubble::before {
+  content: ''; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
+  border-left: 7px solid transparent; border-right: 7px solid transparent;
+  border-top: 7px solid var(--color-white);
+}
+@keyframes bubble-in {
+  0%{ opacity:0; transform: translateX(-50%) translateY(6px) scale(0.9); }
+  100%{ opacity:1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* ============================================================
+   底部操作栏
+   ============================================================ */
+.action-bar {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 10px; z-index: 40;
+}
+.btn-mint, .btn-capsule {
+  padding: 8px 18px;
+  font-size: 14px; font-weight: 600;
+  border: var(--border-base); border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.btn-mint { background: var(--color-mint); }
+.btn-capsule { background: var(--color-white); }
+.btn-mint:hover, .btn-capsule:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.btn-mint:active, .btn-capsule:active {
+  transform: translateY(1px); box-shadow: none;
+}
+
+/* ============================================================
+   衣橱面板
+   ============================================================ */
+.closet-overlay {
+  position: absolute; inset: 0;
+  background: rgba(93,64,55,0.35);
+  z-index: 50; display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity var(--transition-base);
+}
+.closet-overlay.show { opacity: 1; pointer-events: auto; }
+.closet-panel {
+  width: min(760px, 94vw); max-height: 65vh;
+  background: #FFFEF7;
+  border: var(--border-thick);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(100%); transition: transform var(--transition-base);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.closet-overlay.show .closet-panel { transform: translateY(0); }
+
+.closet-header {
+  padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
+  background: var(--color-yellow); border-bottom: var(--border-base);
+}
+.closet-header h2 { font-family: "ZCOOL KuaiLe","PingFang SC",sans-serif; font-size: 18px; }
+.closet-close {
+  width: 32px; height: 32px; border: var(--border-base); border-radius: var(--radius-full);
+  background: var(--color-white); font-size: 22px; line-height: 1;
+  color: var(--color-text-primary); display: flex; align-items: center; justify-content: center;
+}
+.closet-close:hover { background: #FFE0E0; }
+
+.closet-tabs {
+  display: flex; gap: 6px; padding: 10px 16px;
+  background: #F8F2E8; border-bottom: 1px solid var(--color-border-light);
+}
+.tab {
+  padding: 6px 16px; border: var(--border-base); border-radius: var(--radius-full);
+  background: var(--color-white); font-size: 13px; font-weight: 600;
+  transition: all var(--transition-base);
+}
+.tab.active { background: var(--color-pink); }
+.tab:hover { transform: translateY(-1px); }
+
+.closet-grid {
+  flex: 1; padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px,1fr));
+  gap: 10px; overflow-y: auto;
+  align-content: start;
+}
+.clothing-card {
+  background: var(--color-bg);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 8px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  cursor: pointer; transition: all var(--transition-base);
+}
+.clothing-card:hover {
+  border-color: var(--color-border);
+  background: var(--color-white);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+.clothing-card.wearing {
+  border-color: #E89A6A; background: #FFF3E0;
+}
+.clothing-card.wearing::after {
+  content: '✓ 已穿'; font-size: 10px; color: #E89A6A; font-weight: 700;
+}
+.clothing-preview {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+}
+.clothing-name { font-size: 11px; color: var(--color-text-secondary); text-align: center; }
+
+.closet-footer {
+  padding: 10px 20px;
+  display: flex; justify-content: space-between;
+  background: #F8F2E8; border-top: 1px solid var(--color-border-light);
+  font-size: 12px; color: var(--color-text-secondary);
+}
+
+/* ============================================================
+   衣物（纯CSS绘制的卡通衣物，等贴图替换）
+   ============================================================ */
+.wear-top { position: absolute; top: 146px; left: 50%; transform: translateX(-50%); z-index: 5; }
+
+/* T恤 */
+.wear-tshirt { width: 90px; height: 92px; position: relative; }
+.wear-tshirt .shirt-body {
+  position: absolute; top: 10px; left: 10px; right: 10px; bottom: 0;
+  border: var(--border-base); border-radius: 6px 6px 8px 8px;
+}
+.wear-tshirt .shirt-sleeve-l, .wear-tshirt .shirt-sleeve-r {
+  position: absolute; top: 10px; width: 22px; height: 52px;
+  border: var(--border-base); border-radius: 10px;
+}
+.wear-tshirt .shirt-sleeve-l { left: 0; transform: rotate(5deg); }
+.wear-tshirt .shirt-sleeve-r { right: 0; transform: rotate(-5deg); }
+.wear-tshirt .shirt-collar {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 24px; height: 12px;
+  border: var(--border-base); border-top: none;
+  border-radius: 0 0 14px 14px;
+}
+
+/* 卫衣 */
+.wear-hoodie { width: 94px; height: 100px; position: relative; }
+.wear-hoodie .shirt-body {
+  position: absolute; top: 12px; left: 8px; right: 8px; bottom: 0;
+  border: var(--border-base); border-radius: 6px 6px 8px 8px;
+}
+.wear-hoodie .shirt-sleeve-l, .wear-hoodie .shirt-sleeve-r {
+  position: absolute; top: 12px; width: 24px; height: 58px;
+  border: var(--border-base); border-radius: 12px;
+}
+.wear-hoodie .shirt-sleeve-l { left: -1px; transform: rotate(4deg); }
+.wear-hoodie .shirt-sleeve-r { right: -1px; transform: rotate(-4deg); }
+.wear-hoodie .shirt-hood {
+  position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+  width: 48px; height: 22px;
+  border: var(--border-base); border-radius: 24px 24px 4px 4px;
+}
+.wear-hoodie .shirt-pocket {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  width: 36px; height: 20px;
+  border: var(--border-base); border-radius: 4px 4px 10px 10px;
+}
+
+/* 毛衣 */
+.wear-sweater { width: 92px; height: 100px; position: relative; }
+.wear-sweater .shirt-body {
+  position: absolute; top: 10px; left: 10px; right: 10px; bottom: -4px;
+  border: var(--border-base); border-radius: 8px;
+  background-image: repeating-linear-gradient(180deg,transparent,transparent 7px,rgba(139,107,74,0.08) 7px,rgba(139,107,74,0.08) 9px);
+}
+.wear-sweater .shirt-sleeve-l, .wear-sweater .shirt-sleeve-r {
+  position: absolute; top: 10px; width: 22px; height: 60px;
+  border: var(--border-base); border-radius: 12px;
+  background-image: repeating-linear-gradient(180deg,transparent,transparent 7px,rgba(139,107,74,0.08) 7px,rgba(139,107,74,0.08) 9px);
+}
+.wear-sweater .shirt-sleeve-l { left: 0; transform: rotate(4deg); }
+.wear-sweater .shirt-sleeve-r { right: 0; transform: rotate(-4deg); }
+.wear-sweater .shirt-collar {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 28px; height: 10px;
+  border: var(--border-base); border-radius: 14px;
+  background: rgba(255,255,255,0.5);
+}
+
+/* 连衣裙 */
+.wear-dress { width: 96px; height: 180px; position: relative; }
+.wear-dress .dress-top {
+  position: absolute; top: 10px; left: 10px; right: 10px; height: 64px;
+  border: var(--border-base); border-radius: 10px 10px 0 0;
+}
+.wear-dress .dress-skirt {
+  position: absolute; top: 68px; left: -4px; right: -4px; bottom: 0;
+  border: var(--border-base); border-radius: 8px 8px 20px 20px;
+}
+.wear-dress .shirt-sleeve-l, .wear-dress .shirt-sleeve-r {
+  position: absolute; top: 10px; width: 20px; height: 28px;
+  border: var(--border-base); border-radius: 10px;
+}
+.wear-dress .shirt-sleeve-l { left: 2px; }
+.wear-dress .shirt-sleeve-r { right: 2px; }
+
+/* ---- 下装 ---- */
+.wear-bottom { position: absolute; z-index: 5; }
+.wear-skirt {
+  top: 216px; left: 50%; transform: translateX(-50%);
+  width: 76px; height: 48px;
+}
+.wear-skirt .skirt-body {
+  position: absolute; inset: 0;
+  border: var(--border-base); border-radius: 6px 6px 30px 30px;
+}
+.wear-pants {
+  top: 220px; left: 50%; transform: translateX(-50%);
+  width: 72px; height: 130px; position: relative;
+}
+.wear-pants .pant-leg-l, .wear-pants .pant-leg-r {
+  position: absolute; top: 8px; width: 32px; height: calc(100% - 8px);
+  border: var(--border-base); border-radius: 4px 4px 6px 6px;
+}
+.wear-pants .pant-leg-l { left: 0; }
+.wear-pants .pant-leg-r { right: 0; }
+.wear-pants .pant-waist {
+  position: absolute; top: 0; left: -2px; right: -2px; height: 14px;
+  border: var(--border-base); border-radius: 4px;
+}
+.wear-shorts {
+  top: 220px; left: 50%; transform: translateX(-50%);
+  width: 70px; height: 38px; position: relative;
+}
+.wear-shorts .short-leg-l, .wear-shorts .short-leg-r {
+  position: absolute; top: 10px; width: 32px; height: calc(100% - 10px);
+  border: var(--border-base); border-radius: 4px 4px 10px 10px;
+}
+.wear-shorts .short-leg-l { left: 0; }
+.wear-shorts .short-leg-r { right: 0; }
+
+/* ---- 鞋子 ---- */
+.wear-shoes { position: absolute; z-index: 8; }
+.shoe {
+  position: absolute; bottom: -4px; width: 30px; height: 16px;
+  border: var(--border-base); border-radius: 10px 14px 4px 4px;
+}
+.shoe-l { left: 32px; }
+.shoe-r { right: 32px; }
+
+/* ---- 配饰 ---- */
+.wear-acc { position: absolute; z-index: 15; }
+.wear-bow {
+  top: -12px; left: 50%; transform: translateX(-50%);
+  width: 32px; height: 18px; position: relative;
+}
+.wear-bow::before, .wear-bow::after {
+  content: ''; position: absolute; top: 2px;
+  width: 14px; height: 14px;
+  border: var(--border-base); border-radius: 50% 30% 50% 30%;
+}
+.wear-bow::before { left: 0; transform: rotate(-20deg); }
+.wear-bow::after { right: 0; transform: rotate(20deg); }
+.wear-bow .bow-center {
+  position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+  width: 8px; height: 8px; border: var(--border-base); border-radius: 50%;
+}
+
+.wear-beret {
+  top: -14px; left: 50%; transform: translateX(-50%);
+  width: 80px; height: 32px; position: relative;
+}
+.wear-beret .beret-top {
+  position: absolute; top: 0; left: 8px; right: 8px; height: 26px;
+  border: var(--border-base); border-radius: 50% 50% 30% 30%;
+}
+.wear-beret::after {
+  content: ''; position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
+  width: 8px; height: 8px;
+  background: inherit; border: var(--border-base); border-radius: 50%;
+}
+
+.wear-headband {
+  top: 52px; left: 50%; transform: translateX(-50%);
+  width: 84px; height: 10px;
+  border: var(--border-base); border-radius: 10px;
+}
+
+.wear-watch {
+  position: absolute; z-index: 12;
+  top: 218px; width: 18px; height: 10px;
+  border: var(--border-base); border-radius: 3px;
+}
+.watch-l { left: 14px; }
+.watch-r { right: 14px; }
+
+/* ---- 缩略图颜色类 ---- */
+.c-white { background: var(--color-white); }
+.c-pink { background: var(--color-pink); }
+.c-blue { background: var(--color-blue); }
+.c-mint { background: var(--color-mint); }
+.c-yellow { background: var(--color-yellow); }
+.c-red { background: #F0A8A8; }
+.c-navy { background: #7A8FA8; }
+.c-gray { background: #D8D0C8; }
+.c-denim { background: #6A8AA8; }
+.c-black { background: #8B7A6A; }
+.c-brown { background: #B89068; }
+.c-beige { background: #E8D8C0; }
+.c-white-t { background: var(--color-white); }
+.c-pink-t { background: var(--color-bra); }
+.c-khaki { background: #C8B898; }
+
+/* 缩略图容器 */
+.thumb-t, .thumb-h, .thumb-s, .thumb-sk, .thumb-p, .thumb-sh, .thumb-shoe, .thumb-bow, .thumb-beret, .thumb-hb, .thumb-watch {
+  position: relative; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 简单的 T 恤缩略图 */
+.thumb-t::before {
+  content: ''; width: 38px; height: 42px; position: relative;
+  border: 2px solid var(--color-border); border-radius: 6px 6px 8px 8px;
+  background: inherit;
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+.toast {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: rgba(90,64,48,0.92);
+  color: var(--color-white);
+  padding: 10px 22px; border-radius: var(--radius-full);
+  font-size: 13px; font-weight: 500;
+  z-index: 200; pointer-events: none;
+  opacity: 0; transition: all 0.3s var(--transition-bounce);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ============================================================
+   响应式
+   ============================================================ */
+@media (max-width: 900px) {
+  .exp-bar { width: 80px; }
+  .exp-text { display: none; }
+  .ootd-card { min-width: 140px; padding: 8px 12px; font-size: 12px; }
+  .wardrobe { width: 120px; height: 320px; left: 20px; }
+  .stage { width: 220px; }
+  .character { width: 120px; height: 320px; margin-bottom: 50px; }
+}
+@media (max-width: 600px) {
+  .top-bar { padding: 0 10px; height: 48px; }
+  .app-title { font-size: 16px; }
+  .level-badge { font-size: 11px; padding: 1px 6px; }
+  .gender-opt { width: 28px; height: 22px; font-size: 13px; }
+  .stat { font-size: 12px; }
+  .wardrobe { width: 90px; height: 250px; left: 10px; bottom: 80px; }
+  .wardrobe-label { font-size: 10px; padding: 1px 8px; }
+  .stage { width: 180px; left: 55%; }
+  .character { width: 100px; height: 280px; margin-bottom: 40px; }
+  .ootd-card { display: none; }
+  .bubble { font-size: 11px; padding: 6px 12px; bottom: 300px; }
+  .action-bar { gap: 6px; }
+  .btn-mint, .btn-capsule { padding: 6px 10px; font-size: 11px; min-width: 60px; }
+}
